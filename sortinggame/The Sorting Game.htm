@@ -32,6 +32,7 @@
                 <button type="button" id="generatebutton" enabled="" onclick="generatepuzzle(20)">Generate 20x20 puzzle</button>
                 <select id="lang" onchange="location.search = '?lang=' + this.value"><option value="en">en</option><option value="de">de</option></select>&nbsp;
             </div>
+            <select id="layout" onchange="setLayout(this.value)"><option value="grid">Grid</option><option value="wrap">Wrap</option><option value="tight">Tight</option></select>
             <input type="checkbox" id="hide_buttons_checkbox" onclick="hideButtonsCheckbox()"><label for="hide_buttons_checkbox">Hide buttons during gameplay</label>
         </div>
 
@@ -146,6 +147,13 @@ function randomlyPickCategories(numofcats){
 }
 
 
+function setLayout(l) {
+  document.getElementById("board").className = l;
+  document.getElementById("layout").value = l;
+  localStorage.setItem('layout', l);
+}
+
+
 function deselect() {
   if (selected != 0) {
     selected.style = "";
@@ -220,7 +228,8 @@ function shuffleArray(array) {
 //Saves to local storage so the game isn't lost if the page reloads (common on mobile)
 function saveState(score, numofcats) {
     localStorage.clear();
-    
+
+    localStorage.setItem('layout', document.getElementById('layout').value);
     localStorage.setItem('score', score + '');
     localStorage.setItem('mistakes', mistakes + '');
     localStorage.setItem('numofcats', numofcats + '');
@@ -234,17 +243,13 @@ function saveState(score, numofcats) {
         console.log("unchecked")
     }
     
-    var t = document.getElementById('the_table');
-    for (let i = 0; i < t.rows.length; i++) {
-      let row = t.rows[i];
-      for (let j = 0; j < row.cells.length; j++) {
-        let cell = row.cells[j];
-        let button = cell.firstChild;
-        localStorage.setItem(`${i}_${j}_category`, button.category);
-        localStorage.setItem(`${i}_${j}_cluster`, JSON.stringify(button.cluster));
-        localStorage.setItem(`${i}_${j}_innerHTML`, button.innerHTML);
-        localStorage.setItem(`${i}_${j}_title`, button.title);
-      }
+    var buttons = document.getElementById('board').children;
+    for (let i = 0; i < buttons.length; i++) {
+        let button = buttons[i];
+        localStorage.setItem(`${i}_category`, button.category);
+        localStorage.setItem(`${i}_cluster`, JSON.stringify(button.cluster));
+        localStorage.setItem(`${i}_innerHTML`, button.innerHTML);
+        localStorage.setItem(`${i}_title`, button.title);
     }
 }
 
@@ -252,17 +257,11 @@ function saveState(score, numofcats) {
 
 function putWordsInBoard(wordlist) {
   shuffleArray(wordlist);
-  var currentWordIndex = 0;
-  var table = document.getElementById("the_table");
-  for (let i = 0, row; row = table.rows[i]; i++) {
-    for (let j = 0, col; col = row.cells[j]; j++) {
-      var button = col.firstElementChild;
-      // button.pos = currentWordIndex;
-      button.textContent = wordlist[currentWordIndex][0];
-      button.category = wordlist[currentWordIndex][1];
-      button.cluster = [button.textContent];
-      currentWordIndex += 1;
-    }
+  var buttons = document.getElementById("board").children;
+  for (let i = 0; i < buttons.length; i++) {
+    buttons[i].textContent = wordlist[i][0];
+    buttons[i].category = wordlist[i][1];
+    buttons[i].cluster = [buttons[i].textContent];
   }
 }
 
@@ -271,17 +270,10 @@ function putWordsInBoard(wordlist) {
 
 function setUpBoard(numofcats, score) {
   // Just sets up the dom elements; does not put words in them.
-  var b = document.getElementById("board");   
-  const table = document.createElement('table');
-  table.id = 'the_table';
-  for (let i = 0; i < numofcats; i++) {
-    const tr = document.createElement('tr');
-    tr.classList.add('.row');
-    for (let j = 0; j < numofcats; j++) {
-       const td = document.createElement('td');
-       td.class = "bigbut";
+  var b = document.getElementById("board");
+  b.style.setProperty('--n', numofcats);
+  for (let i = 0; i < numofcats * numofcats; i++) {
        const button = document.createElement('button');
-       button.class = "bigbut"
        button.onclick = function() {
            if (selected == button) {
              deselect();
@@ -323,8 +315,8 @@ function setUpBoard(numofcats, score) {
                  secondbut.textContent = '';
                  secondbut.disabled = true;
                  
-                 // Remove not just the button but the entire <td>.
-                 secondbut.parentElement.remove();
+                 // Keep its slot as an empty hole.
+                 secondbut.classList.add('gone');
              
            } else {
              mistakes = mistakes + 1;
@@ -352,13 +344,8 @@ function setUpBoard(numofcats, score) {
               document.getElementById('buttons').style.display = 'inline-block';
            }
        };
-       td.appendChild(button);
-       tr.appendChild(td);
-    }
-    table.appendChild(tr);
+       b.appendChild(button);
   }
-  
-  document.getElementById("board").appendChild(table);
 }
 
 
@@ -388,31 +375,20 @@ function loadState(numofcats) {
     mistakes = Number(s);
     document.getElementById("mistakes").textContent = mistakes;
     
-    var currentWordIndex = 0;
-    var table = document.getElementById("the_table");
-    var cells_to_remove = [];
+    var buttons = document.getElementById("board").children;
+    for (let i = 0; i < buttons.length; i++) {
+        var button = buttons[i];
+        button.category = localStorage.getItem(`${i}_category`);
 
-    for (let i = 0, row; row = table.rows[i]; i++) {
-      for (let j = 0, col; col = row.cells[j]; j++) {
-        var button = col.firstElementChild;
-        // button.pos = currentWordIndex;
-        button.category = localStorage.getItem(`${i}_${j}_category`);
-
-        button.cluster = JSON.parse(localStorage.getItem(`${i}_${j}_cluster`));
+        button.cluster = JSON.parse(localStorage.getItem(`${i}_cluster`));
         if (Array.isArray(button.cluster) && button.cluster.length == numofcats) {
             finishCategory(button);
         }
-        button.innerHTML = localStorage.getItem(`${i}_${j}_innerHTML`);
-        button.title = localStorage.getItem(`${i}_${j}_title`);
-        currentWordIndex += 1;
+        button.innerHTML = localStorage.getItem(`${i}_innerHTML`);
+        button.title = localStorage.getItem(`${i}_title`);
         if (button.innerHTML == '') {
-            // No word here, remove the whole <td>
-            cells_to_remove.push(col);
+            button.classList.add('gone');
         }
-      }
-    }
-    for (let i = 0; i < cells_to_remove.length; i++) {
-        cells_to_remove[i].remove();
     }
 }
             
@@ -422,6 +398,7 @@ function loadState(numofcats) {
 //Parent function that calls most of the above when a "Generate puzzle" button is clicked
 function generatepuzzle(size){
         localStorage.clear();
+        localStorage.setItem('layout', document.getElementById('layout').value);
         resetBoard();
         setUpBoard(size, 0);
         randomlyPickCategories(size);
@@ -431,6 +408,7 @@ function generatepuzzle(size){
 
 
 //These automatically run when the page loads, and load any saved local data.
+setLayout(localStorage.getItem('layout') || 'grid');
 setUpBoard(Number(localStorage.getItem('numofcats')), Number(localStorage.getItem('score')));
 loadState(Number(localStorage.getItem('numofcats')));
 
