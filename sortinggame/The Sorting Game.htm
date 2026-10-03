@@ -33,6 +33,8 @@
                 <select id="lang" onchange="location.search = '?lang=' + this.value"><option value="en">en</option><option value="de">de</option></select>&nbsp;
             </div>
             <select id="layout" onchange="setLayout(this.value)"><option value="grid">Grid</option><option value="wrap">Wrap</option><option value="tight">Tight</option></select>
+            <button type="button" onclick="reflow()">Reflow</button>
+            <button type="button" onclick="order()">Order</button>
             <input type="checkbox" id="hide_buttons_checkbox" onclick="hideButtonsCheckbox()"><label for="hide_buttons_checkbox">Hide buttons during gameplay</label>
         </div>
 
@@ -151,6 +153,22 @@ function setLayout(l) {
   document.getElementById("board").className = l;
   document.getElementById("layout").value = l;
   localStorage.setItem('layout', l);
+}
+
+
+//Removes the holes left by merged words, so the remaining buttons close up
+function reflow() {
+  document.querySelectorAll('.gone').forEach(b => b.remove());
+  saveState(Number(document.getElementById('score').textContent), Number(localStorage.getItem('numofcats')));
+}
+
+
+//Moves the biggest clusters to the front (finished categories first) and holes to the end; sort is stable, so the rest keep their order
+function order() {
+  const b = document.getElementById('board');
+  const size = x => x.classList.contains('gone') ? 0 : x.cluster.length;
+  [...b.children].sort((x, y) => size(y) - size(x)).forEach(x => b.appendChild(x));
+  saveState(Number(document.getElementById('score').textContent), Number(localStorage.getItem('numofcats')));
 }
 
 
