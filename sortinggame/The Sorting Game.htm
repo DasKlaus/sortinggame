@@ -1,4 +1,4 @@
-<html><!-- Originally created in 2025 by Thomas Colthurst --><!-- Original at https://thomaswc.com/2025.html --><!-- Adapted in 2026 by Victoria Roberts:--><!-- Added new data - each set with 20+ items for greater replayability --><!-- Added buttons to generate new random puzzles at several sizes (and reset the board/fireworks) --><!-- Added a checkbox that allows the user to hide the new puzzle buttons during gameplay, to reduce the chance of accidentally clicking on them mid-game --><!-- Added a visible, textual attribution/link crediting Thomas Colthurst --><!-- Changed the checkCategories function to ensure it validates all data, not just the data for a particular puzzle --><!-- Fixed the issue with Unicode rendering by adding charset=utf-8 to the <header> --><!-- Disabled the pop-up saying that you've won, to streamline playing again --><!-- Hid the Deselect button, since I broke it somehow --><!-- Released under a Creative Commons Share Alike with Attribution License --><!-- See https://creativecommons.org/licenses/by-sa/4.0/ --><head>
+<html><!-- Originally created in 2025 by Thomas Colthurst --><!-- Original at https://thomaswc.com/2025.html --><!-- Adapted in 2026 by Victoria Roberts:--><!-- Added new data - each set with 20+ items for greater replayability --><!-- Added buttons to generate new random puzzles at several sizes (and reset the board) --><!-- Added a checkbox that allows the user to hide the new puzzle buttons during gameplay, to reduce the chance of accidentally clicking on them mid-game --><!-- Added a visible, textual attribution/link crediting Thomas Colthurst --><!-- Changed the checkCategories function to ensure it validates all data, not just the data for a particular puzzle --><!-- Fixed the issue with Unicode rendering by adding charset=utf-8 to the <header> --><!-- Hid the Deselect button, since I broke it somehow --><!-- Released under a Creative Commons Share Alike with Attribution License --><!-- See https://creativecommons.org/licenses/by-sa/4.0/ --><head>
         <title>The Sorting Game</title>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
@@ -17,146 +17,27 @@
         <link rel="icon" type="image/png" href="https://victoria.danclan.com/favicon/favicon-16x16.png" sizes="16x16">
         <link rel="icon" type="image/png" href="https://victoria.danclan.com/favicon/favicon-128.png" sizes="128x128">
 
-    <style>
-        body {
-              background-color: white; /* Or #fff or #ffffff */
-            }
-
-            .bigbut {
-            width:100%; height:100%; display:block;
-            }
-
-            .shake {
-              animation: shake 0.5s;
-              animation-iteration-count: 1;
-            }
-
-            .numCirc {
-                border-radius: 70%;
-                background: white; /* #fff; */
-                border: 2px solid red; /* #666; */
-                color: red; /* #666; */
-                text-align: center;
-            }
-
-            .red {
-              color: red;
-            }
-
-            .floating {
-                /* position: fixed;    no longer needs to float
-                z-index: 999; */
-                background-color: lightblue;
-            }
-
-            #fireworks {
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        pointer-events: none;
-                        z-index: 10000;
-                    }
-
-            @keyframes shake {
-              0% { transform: translateX(1px) rotate(0deg); }
-              10% { transform: translateX(-1px) rotate(-1deg); }
-              20% { transform: translateX(-3px) rotate(1deg); }
-              30% { transform: translateX(3px) rotate(0deg); }
-              40% { transform: translateX(1px) rotate(1deg); }
-              50% { transform: translateX(-1px) rotate(-1deg); }
-              60% { transform: translateX(-3px) rotate(0deg); }
-              70% { transform: translateX(3px) rotate(-1deg); }
-              80% { transform: translateX(-1px) rotate(1deg); }
-              90% { transform: translateX(1px) rotate(0deg); }
-              100% { transform: translateX(1px) rotate(-1deg); }
-            }
-
-
-            /*For more information pop-up*/
-            .popup-overlay {
-                display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.5);
-            }
-            .popup {
-                font-family: Arial, sans-serif;
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: #fff;
-                padding: 20px;
-                border-radius: 8px;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-            }
-            .popup-content {
-                text-align: center;
-            }
-            .popup .close {
-                position: absolute;
-                top: 10px;
-                right: 10px;
-                font-size: 20px;
-                cursor: pointer;
-                color: #333;
-            }
-            .popup #emailInput {
-                width: 80%;
-                padding: 10px;
-                margin: 10px 0;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-            }
-            .popup button {
-                background-color: #4caf50;
-                color: #fff;
-                padding: 10px 20px;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 16px;
-            }
-    </style></head>
+    <link rel="stylesheet" href="style.css"></head>
     
 
-    <body id="body"><canvas id="fireworks"></canvas>
+    <body id="body">
         
         <div class="floating">
            Combine items two at a time into categories. Score:&nbsp;<span id="score">0</span> Mistakes:&nbsp;<span id="mistakes">0</span> 
-            <button type="button" id="deselect" style="display:none" disabled="disabled" onclick="deselect()">Deselect</button>Adapted from <a href="https://thomaswc.com/2025.html">Thomas Colthurst’s original</a>. <a href="index.php">Site notice</a>
+            <button type="button" id="deselect" disabled="disabled" onclick="deselect()">Deselect</button>Adapted from <a href="https://thomaswc.com/2025.html">Thomas Colthurst’s original</a>. <a href="index.php">Site notice</a>
             <br>
-            <div id="buttons" style="display:inline-block;">
+            <div id="buttons">
                 <button type="button" id="generatebutton" enabled="" onclick="generatepuzzle(10)">Generate 10x10 puzzle</button>
                 <button type="button" id="generatebutton" enabled="" onclick="generatepuzzle(15)">Generate 15x15 puzzle</button>
                 <button type="button" id="generatebutton" enabled="" onclick="generatepuzzle(20)">Generate 20x20 puzzle</button>
                 <select id="lang" onchange="location.search = '?lang=' + this.value"><option value="en">en</option><option value="de">de</option></select>&nbsp;
-                <button type="button" id="generatebutton" enabled="" onclick="openPopup()" aria-label="More information">ⓘ</button>
             </div>
             <input type="checkbox" id="hide_buttons_checkbox" onclick="hideButtonsCheckbox()"><label for="hide_buttons_checkbox">Hide buttons during gameplay</label>
         </div>
 
-        <div style="padding-top: 5px; padding-bottom: 5px; position: absolute" id="board"><table id="the_table"><tr class=".row"><td><button>Bowl</button></td><td><button>Hypostyle hall</button></td><td><button>Serengeti</button></td><td><button>Afro</button></td><td><button>Futon</button></td><td><button>Neun</button></td><td><button>European shorthair</button></td><td><button>Davenport</button></td><td><button>Dos</button></td><td><button>Onze</button></td></tr><tr class=".row"><td><button>Hope chest</button></td><td><button>Geb</button></td><td><button>Amun</button></td><td><button>Ad lib</button></td><td><button>Christmas</button></td><td><button>Et cetera</button></td><td><button>Rebab</button></td><td><button>Hatstand</button></td><td><button>Aten</button></td><td><button>Balinese</button></td></tr><tr class=".row"><td><button>Ponytail</button></td><td><button>Clerestory</button></td><td><button>Cassian Andor</button></td><td><button>Sept</button></td><td><button>Ash Wednesday</button></td><td><button>Diwali</button></td><td><button>Prima facie</button></td><td><button>Isis</button></td><td><button>Kwanzaa</button></td><td><button>American bobtail</button></td></tr><tr class=".row"><td><button>Osiris</button></td><td><button>Anubis</button></td><td><button>Cinco</button></td><td><button>Sechs</button></td><td><button>Huit</button></td><td><button>Cornish rex</button></td><td><button>Iwan</button></td><td><button>Leia Organa</button></td><td><button>Poe Dameron</button></td><td><button>Dia de los Muertos</button></td></tr><tr class=".row"><td><button>Secretaire bookcase</button></td><td><button>Chartreux</button></td><td><button>Mihrab</button></td><td><button>Mother's Day</button></td><td><button>Curriculum vitae</button></td><td><button>Oud</button></td><td><button>Feathered</button></td><td><button>Persian</button></td><td><button>Narthex</button></td><td><button>Frosted tips</button></td></tr><tr class=".row"><td><button>In medias res</button></td><td><button>Updo</button></td><td><button>Buzz</button></td><td><button>Zither</button></td><td><button>Obi-Wan Kenobi</button></td><td><button>Drui</button></td><td><button>Organ</button></td><td><button>Bastet</button></td><td><button>Per capita</button></td><td><button>Aisle</button></td></tr><tr class=".row"><td><button>Luke Skywalker</button></td><td><button>Genius loci</button></td><td><button>Groundhog Day</button></td><td><button>Kylo Ren</button></td><td><button>Thoth</button></td><td><button>Tonsure</button></td><td><button>Once</button></td><td><button>Acht</button></td><td><button>Tambourine</button></td><td><button>Snowshoe</button></td></tr><tr class=".row"><td><button>Dulcimer</button></td><td><button>Sobek</button></td><td><button>Grogu</button></td><td><button>All Saints' Day</button></td><td><button>Eid al-Adha</button></td><td><button>Bell tower</button></td><td><button>Lyre</button></td><td><button>Emperor Palpatine</button></td><td><button>Summa cum laude</button></td><td><button>Stupa</button></td></tr><tr class=".row"><td><button>Padme Amidala</button></td><td><button>Highlights</button></td><td><button>Alter ego</button></td><td><button>Pagoda</button></td><td><button>American shorthair</button></td><td><button>Vanity</button></td><td><button>Pixie-bob</button></td><td><button>Crumhorn</button></td><td><button>Darth Vader</button></td><td><button>In situ</button></td></tr><tr class=".row"><td><button>Panpipes</button></td><td><button>Rocking chair</button></td><td><button>Fainting couch</button></td><td><button>Olifant</button></td><td><button>Ma'at</button></td><td><button>Sideboard</button></td><td><button>Purim</button></td><td><button>Bun</button></td><td><button>Stereo cabinet</button></td><td><button>Gallery</button></td></tr></table></div>
+        <div id="board"></div>
 
 
-        <!-- More information pop-up -->
-        <div class="popup-overlay" id="popupOverlay" style="display: none;">
-            <div class="popup" id="popup">
-                <span class="close" id="closePopup">×</span>
-                <div class="popup-content">
-                <p>Welcome to <b>The Sorting Game</b>!</p>
-                <p>Is that its official name? I don’t know!</p>
-                <p>I adapted this from <a href="https://thomaswc.com/2025.html">Thomas Colthurst’s original game</a>, which was published under Creative Commons Share Alike. In his version, there are 45 categories with 45 items each.</p>
-                <p>In this version, there are 150+ total categories, a subset of which will be randomly selected upon generating a puzzle. Most of the categories have more than 20 items (and some categories, many more!), so even if you get the same category across multiple games, you are likely to encounter new items.</p>
-                <p>With over 6,000 total items, it’s inevitable that some items could logically fit into multiple categories. For these, my apologies!</p>
-                </div>
-            </div>
-        </div>
 
 
     
@@ -207,18 +88,6 @@ var wordlist = [];
 
 
 // Functions
-
-
-//Turns off fireworks (if the user already won) and resets the canvas for the next victory
-function resetFireworks(){
-    const myNode2 = document.getElementById("fireworks");
-    myNode2.remove();
-    var bodyDOM = document.getElementById("body");
-    var newCanvas = document.createElement('canvas');
-    newCanvas.id = 'fireworks';
-    bodyDOM.insertBefore(newCanvas, bodyDOM.firstChild);
-
-}
 
 
 //Ensures DOM is empty for generating a new puzzle, and resets score/mistake counter
@@ -399,129 +268,6 @@ function putWordsInBoard(wordlist) {
 
 
 
-function startFireworks() {
-  const canvas = document.getElementById('fireworks');
-  const ctx = canvas.getContext('2d');
-  let w, h;
-  let particles = [];
-  let fireworks = [];
-
-  function resize() {
-    w = canvas.width = window.innerWidth;
-    h = canvas.height = window.innerHeight;
-  }
-  window.addEventListener('resize', resize);
-  resize();
-
-  class Firework {
-    constructor() {
-        this.x = Math.random() * w;
-        this.y = h;
-        this.tx = Math.random() * w;
-        this.ty = Math.random() * (h / 2);
-        this.color = `hsl(${Math.random() * 360}, 100%, 50%)`;
-        this.speed = 2 + Math.random() * 2;
-        this.angle = Math.atan2(this.ty - this.y, this.tx - this.x);
-        this.vx = Math.cos(this.angle) * this.speed;
-        this.vy = Math.sin(this.angle) * this.speed;
-        this.exploded = false;
-    }
-
-    update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        if (this.vy < 0 && this.y < this.ty) {
-            this.explode();
-        } else if (this.vy > 0 && this.y > this.ty) { // Should technically not happen with simple upward movement
-             this.explode();
-        }
-    }
-
-    explode() {
-        this.exploded = true;
-        for (let i = 0; i < 50; i++) {
-            particles.push(new Particle(this.x, this.y, this.color));
-        }
-    }
-
-    draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
-        ctx.fillStyle = this.color;
-        ctx.fill();
-    }
-  }
-
-  class Particle {
-    constructor(x, y, color) {
-        this.x = x;
-        this.y = y;
-        this.color = color;
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 3;
-        this.vx = Math.cos(angle) * speed;
-        this.vy = Math.sin(angle) * speed;
-        this.alpha = 1;
-        this.decay = Math.random() * 0.015 + 0.005;
-    }
-
-    update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.vy += 0.05; // gravity
-        this.alpha -= this.decay;
-    }
-
-    draw() {
-        ctx.save();
-        ctx.globalAlpha = this.alpha;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
-        ctx.fillStyle = this.color;
-        ctx.fill();
-        ctx.restore();
-    }
-  }
-
-  function loop() {
-    // Clear with a trail effect
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'; 
-    ctx.fillRect(0, 0, w, h);
-    ctx.globalCompositeOperation = 'lighter';
-
-    // Launch new firework randomly
-    if (Math.random() < 0.05) {
-        fireworks.push(new Firework());
-    }
-
-    // Update and draw fireworks
-    for (let i = fireworks.length - 1; i >= 0; i--) {
-        fireworks[i].update();
-        fireworks[i].draw();
-        if (fireworks[i].exploded) {
-            fireworks.splice(i, 1);
-        }
-    }
-
-    // Update and draw particles
-    for (let i = particles.length - 1; i >= 0; i--) {
-        particles[i].update();
-        particles[i].draw();
-        if (particles[i].alpha <= 0) {
-            particles.splice(i, 1);
-        }
-    }
-
-    requestAnimationFrame(loop);
-  }
-
-  loop();
-}
-
-
-
-
 
 function setUpBoard(numofcats, score) {
   // Just sets up the dom elements; does not put words in them.
@@ -602,8 +348,6 @@ function setUpBoard(numofcats, score) {
            }
            saveState(score, numofcats);
            if (score == (numofcats*numofcats) - numofcats) {
-              startFireworks();
-
               //Show buttons (in case checkbox was checked, redundant otherwise)
               document.getElementById('buttons').style.display = 'inline-block';
            }
@@ -678,7 +422,6 @@ function loadState(numofcats) {
 //Parent function that calls most of the above when a "Generate puzzle" button is clicked
 function generatepuzzle(size){
         localStorage.clear();
-        resetFireworks();
         resetBoard();
         setUpBoard(size, 0);
         randomlyPickCategories(size);
@@ -693,26 +436,6 @@ loadState(Number(localStorage.getItem('numofcats')));
 
 
 
-//For more information pop-up
-const popupOverlay = document.getElementById('popupOverlay');
-const popup = document.getElementById('popup');
-const closePopup = document.getElementById('closePopup');
-// Function to open the popup
-function openPopup() {
-    popupOverlay.style.display = 'block';
-}
-// Function to close the popup
-function closePopupFunc() {
-    popupOverlay.style.display = 'none';
-}
-// Close the popup when the close button is clicked
-closePopup.addEventListener('click', closePopupFunc);
-// Close the popup when clicking outside the popup content
-popupOverlay.addEventListener('click', function (event) {
-    if (event.target === popupOverlay) {
-        closePopupFunc();
-    }
-});
    
     
         </script>
