@@ -1,3 +1,16 @@
+
+body {text-align: center; padding: 30px; font-family: Georgia, serif; font-size: 18px;}
+nav {width: 100%; position: absolute; top: 0; left: 0; right: 0; background: #000; padding: 5px;}
+nav a {text-decoration: none; color: #fff;}
+nav a + a::before {content: "·"; padding: 0 18px;}
+#instructions a {color: inherit; text-decoration: underline #000 dotted;}
+h1 {font-size: 140px; margin: 0 0 30px 0; font-family: Cambria, Georgia, serif;}
+h1 span {margin: 0 0.2em;}
+button {font-family: Georgia, serif; font-size: 18px; box-sizing: border-box; background: white; border: 1px solid #555; border-radius: 2px;}
+button:hover {background: #eee;}
+#board.start button {width: 10em; height: 5em;}
+
+
 body {
   background-color: white; /* Or #fff or #ffffff */
 }
@@ -23,10 +36,6 @@ body {
     /* position: fixed;    no longer needs to float
     z-index: 999; */
     background-color: lightblue;
-}
-
-#deselect {
-    display: none;
 }
 
 #buttons {

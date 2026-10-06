@@ -19,10 +19,7 @@ function hideButtonsCheckbox() {
 }
 
         
-// Globals
-// var score = 0;
-var mistakes = 0;
-var selected = 0;  // The currently selected button, if any.
+// Globals (more in board.js)
 // var wordlist = [];  // Actually, a list of (word, category) pairs
 
 
@@ -64,7 +61,7 @@ function randomlyPickCategories(numofcats){
             j = 0,
             temp;
         while (i--) {
-            j = Math.floor(Math.random() * (i+1));
+            j = Math.floor(rand() * (i+1));
             temp = array[i];
             array[i] = array[j];
             array[j] = temp;
@@ -105,7 +102,7 @@ function setLayout(l) {
 //Removes the holes left by merged words, so the remaining buttons close up
 function reflow() {
   document.querySelectorAll('.gone').forEach(b => b.remove());
-  saveState(Number(document.getElementById('score').textContent), Number(localStorage.getItem('numofcats')));
+  saveState();
 }
 
 
@@ -114,55 +111,14 @@ function order() {
   const b = document.getElementById('board');
   const size = x => x.classList.contains('gone') ? 0 : x.cluster.length;
   [...b.children].sort((x, y) => size(y) - size(x)).forEach(x => b.appendChild(x));
-  saveState(Number(document.getElementById('score').textContent), Number(localStorage.getItem('numofcats')));
+  saveState();
 }
-
-
-function deselect() {
-  if (selected != 0) {
-    selected.style = "";
-    selected = 0;
-    document.getElementById("deselect").disabled = true;
-  }
-}
-
-
-
-function stringToLightColor(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-
-  const h = Math.abs(hash) % 360;
-  const s = 70;
-  const l = 80 + (Math.abs(hash) % 10); 
-
-  const lDev = l / 100;
-  const a = (s * Math.min(lDev, 1 - lDev)) / 100;
-
-  const f = (n) => {
-    const k = (n + h / 30) % 12;
-    const color = lDev - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color).toString(16).padStart(2, "0");
-  };
-
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
-
 
 
 function getRandomHexColor() {
   return '#' + Math.floor(Math.random() * 16777215).toString(16);
 }
 
-
-
-function finishCategory(b) {
-  b.innerHTML  =  '<b>' + b.category + '</b>';
-  b.disabled = true;
-  b.style.background= stringToLightColor(b.category);
-}
 
 
 function checkCategories(numofcats, wordlist) {
@@ -180,23 +136,34 @@ function checkCategories(numofcats, wordlist) {
 
 
 
-function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
+//Called by the board after every click
+function moved() {
+  document.getElementById("deselect").disabled = selected == 0;
+  document.getElementById("score").textContent = score;
+  document.getElementById("mistakes").textContent = mistakes;
+  saveState();
+}
+
+
+//Called by the board when a category is complete
+function categoryDone() {
+  //Show buttons once all are complete (in case checkbox was checked, redundant otherwise)
+  if (score == size * size - size) {
+    document.getElementById('buttons').style.display = 'inline-block';
   }
 }
 
 
 
 //Saves to local storage so the game isn't lost if the page reloads (common on mobile)
-function saveState(score, numofcats) {
+function saveState() {
     localStorage.clear();
 
     localStorage.setItem('layout', document.getElementById('layout').value);
+    localStorage.setItem('seed', seed);
     localStorage.setItem('score', score + '');
     localStorage.setItem('mistakes', mistakes + '');
-    localStorage.setItem('numofcats', numofcats + '');
+    localStorage.setItem('numofcats', size + '');
 
     if (document.getElementById('hide_buttons_checkbox').checked) {
         localStorage.setItem('checkbox', "True" + '');
@@ -215,101 +182,6 @@ function saveState(score, numofcats) {
         localStorage.setItem(`${i}_innerHTML`, button.innerHTML);
         localStorage.setItem(`${i}_title`, button.title);
     }
-}
-
-
-
-function putWordsInBoard(wordlist) {
-  shuffleArray(wordlist);
-  var buttons = document.getElementById("board").children;
-  for (let i = 0; i < buttons.length; i++) {
-    buttons[i].textContent = wordlist[i][0];
-    buttons[i].category = wordlist[i][1];
-    buttons[i].cluster = [buttons[i].textContent];
-  }
-}
-
-
-
-
-function setUpBoard(numofcats, score) {
-  // Just sets up the dom elements; does not put words in them.
-  var b = document.getElementById("board");
-  b.style.setProperty('--n', numofcats);
-  for (let i = 0; i < numofcats * numofcats; i++) {
-       const button = document.createElement('button');
-       button.onclick = function() {
-           if (selected == button) {
-             deselect();
-             return;
-           }
-           button.style = "filter: invert(100%)";
-           if (selected == 0) {
-               selected = button;
-               document.getElementById("deselect").disabled = false;
-               return;
-           }
-           document.getElementById("deselect").disabled = true;
-           if (button.category == selected.category) {
-             firstbut = button;
-             secondbut = selected;
-             
-             // Deselect
-             selected.style = "";
-             button.style = "";
-             selected = 0;
-             score += 1;
-             
-             // Merge
-             firstbut.cluster = firstbut.cluster.concat(secondbut.cluster);
-             // console.log(firstbut.cluster);
-             if (firstbut.cluster.length == 2) {
-               firstbut.innerHTML = '<b>' + firstbut.cluster.join('; ') + '</b>';
-             } else {
-               firstbut.innerHTML = '<b>' + firstbut.cluster.slice(0, 2).join(', ') + ', ... <span class="red">[' + firstbut.cluster.length + ']</span></b>';
-               firstbut.title = firstbut.cluster.join('\n');
-             }
-             if (firstbut.cluster.length == numofcats) {
-                 finishCategory(firstbut);
-             }
-             
-             document.getElementById("score").textContent = score;
-             // Remove the button for the eliminated word.
-             secondbut.title = '';
-                 secondbut.textContent = '';
-                 secondbut.disabled = true;
-                 
-                 // Keep its slot as an empty hole.
-                 secondbut.classList.add('gone');
-             
-           } else {
-             mistakes = mistakes + 1;
-             document.getElementById("mistakes").textContent = mistakes;
-             // Shake it
-             button.classList.add('shake');
-             selected.classList.add('shake');
-             
-             button.addEventListener('animationend', () => {
-               button.classList.remove('shake');
-               button.style = "";
-             }, { once: true });
-
-             old_selected = selected;
-             old_selected.addEventListener('animationend', () => {
-               old_selected.classList.remove('shake');
-               old_selected.style = "";
-             }, { once: true });
-
-             selected = 0;
-           }
-           saveState(score, numofcats);
-           if (score == (numofcats*numofcats) - numofcats) {
-              //Show buttons (in case checkbox was checked, redundant otherwise)
-              document.getElementById('buttons').style.display = 'inline-block';
-           }
-       };
-       b.appendChild(button);
-  }
 }
 
 
@@ -359,19 +231,46 @@ function loadState(numofcats) {
 
 
 
-//Parent function that calls most of the above when a "Generate puzzle" button is clicked
+//"Generate puzzle" buttons: a new seed of language, size and a random part, e.g. en15-k3x9q
 function generatepuzzle(size){
+        location.search = '?go=game&seed=' + document.getElementById('lang').value + size + '-' + Math.random().toString(36).slice(2, 7);
+}
+
+
+//Mulberry32, seeded by a hash of the seed string
+function seededRandom(str) {
+  let a = 0;
+  for (const c of str) a = Math.imul(a ^ c.charCodeAt(0), 2654435761);
+  return () => {
+    a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+
+//Builds the board for a seed
+function playSeed(){
+        const size = Number(seed.match(/^[a-z]+(\d+)-/)[1]);
+        rand = seededRandom(seed);
         localStorage.clear();
         localStorage.setItem('layout', document.getElementById('layout').value);
         resetBoard();
-        setUpBoard(size, 0);
+        setUpBoard(size);
         randomlyPickCategories(size);
         checkCategories(size, []);
         hideButtonsCheckbox(); //if box is checked, hide buttons now
 }
 
 
-//These automatically run when the page loads, and load any saved local data.
+//These automatically run when the page loads: a new seed in the URL builds its board, otherwise any saved local data is loaded.
+var urlSeed = new URLSearchParams(location.search).get('seed');
+var seed = urlSeed || localStorage.getItem('seed');
 setLayout(localStorage.getItem('layout') || 'grid');
-setUpBoard(Number(localStorage.getItem('numofcats')), Number(localStorage.getItem('score')));
-loadState(Number(localStorage.getItem('numofcats')));
+if (urlSeed && urlSeed != localStorage.getItem('seed')) {
+    playSeed();
+} else {
+    setUpBoard(Number(localStorage.getItem('numofcats')));
+    loadState(Number(localStorage.getItem('numofcats')));
+}
