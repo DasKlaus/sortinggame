@@ -1,7 +1,7 @@
 // Board logic shared by the game page and the start page.
-// The page defines moved() (called after every click) and categoryDone(button) (called when a category is complete).
+// The page defines moved(change) (called after every click, with {action: 'merge', a, b} or {action: 'mistake'} when something changed) and categoryDone(button) (called when a category is complete).
 
-var rand = Math.random;  // The game page replaces it with a seeded generator, see playSeed
+var rand = Math.random;  // The game page replaces it with a seeded generator
 var size = 0;  // Number of categories, and of items per category
 var score = 0;
 var mistakes = 0;
@@ -50,6 +50,27 @@ function finishCategory(b) {
 
 
 
+function showCluster(b) {
+  if (b.cluster.length == 2) {
+    b.innerHTML = '<b>' + b.cluster.join('; ') + '</b>';
+  } else if (b.cluster.length > 2) {
+    b.innerHTML = '<b>' + b.cluster.slice(0, 2).join(', ') + ', ... <span class="red">[' + b.cluster.length + ']</span></b>';
+    b.title = b.cluster.join('\n');
+  }
+}
+
+
+
+//Empties a merged word's button, keeping its slot as a hole
+function hole(b) {
+  b.title = '';
+  b.textContent = '';
+  b.disabled = true;
+  b.classList.add('gone');
+}
+
+
+
 function shuffleArray(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
@@ -59,91 +80,57 @@ function shuffleArray(array) {
 
 
 
-//wordlist: (word, category) pairs
-function putWordsInBoard(wordlist) {
-  shuffleArray(wordlist);
-  var buttons = document.getElementById("board").children;
-  for (let i = 0; i < buttons.length; i++) {
-    buttons[i].textContent = wordlist[i][0];
-    buttons[i].category = wordlist[i][1];
-    buttons[i].cluster = [buttons[i].textContent];
-  }
-}
-
-
-
-function setUpBoard(n) {
-  // Just sets up the dom elements; does not put words in them.
-  size = n;
+//wordlist: (word, category) pairs, size * size of them
+function setUpBoard(wordlist) {
+  size = Math.sqrt(wordlist.length);
   score = 0;
   mistakes = 0;
-  var b = document.getElementById("board");
-  b.style.setProperty('--n', n);
-  for (let i = 0; i < n * n; i++) {
-       const button = document.createElement('button');
-       button.onclick = function() {
-           if (selected == button) {
-             deselect();
-             return;
-           }
-           button.style = "filter: invert(100%)";
-           if (selected == 0) {
-               selected = button;
-               moved();
-               return;
-           }
-           if (button.category == selected.category) {
-             firstbut = button;
-             secondbut = selected;
-
-             // Deselect
-             selected.style = "";
-             button.style = "";
-             selected = 0;
-             score += 1;
-
-             // Merge
-             firstbut.cluster = firstbut.cluster.concat(secondbut.cluster);
-             if (firstbut.cluster.length == 2) {
-               firstbut.innerHTML = '<b>' + firstbut.cluster.join('; ') + '</b>';
-             } else {
-               firstbut.innerHTML = '<b>' + firstbut.cluster.slice(0, 2).join(', ') + ', ... <span class="red">[' + firstbut.cluster.length + ']</span></b>';
-               firstbut.title = firstbut.cluster.join('\n');
-             }
-             if (firstbut.cluster.length == size) {
-                 finishCategory(firstbut);
-                 categoryDone(firstbut);
-             }
-
-             // Remove the button for the eliminated word.
-             secondbut.title = '';
-                 secondbut.textContent = '';
-                 secondbut.disabled = true;
-
-                 // Keep its slot as an empty hole.
-                 secondbut.classList.add('gone');
-
-           } else {
-             mistakes = mistakes + 1;
-             // Shake it
-             button.classList.add('shake');
-             selected.classList.add('shake');
-
-             button.addEventListener('animationend', () => {
-               button.classList.remove('shake');
-               button.style = "";
-             }, { once: true });
-
-             old_selected = selected;
-             old_selected.addEventListener('animationend', () => {
-               old_selected.classList.remove('shake');
-               old_selected.style = "";
-             }, { once: true });
-
-             selected = 0;
-           }
-           moved();
-       };
-       b.appendChild(button);
-  }
+  shuffleArray(wordlist);
+  const b = document.getElementById("board");
+  b.style.setProperty('--n', size);
+  wordlist.forEach(([word, category], i) => {
+    const button = document.createElement('button');
+    button.textContent = word;
+    button.category = category;
+    button.cluster = [word];
+    button.index = i;
+    button.onclick = function() {
+      if (selected == button) {
+        deselect();
+        return;
+      }
+      button.style = "filter: invert(100%)";
+      if (selected == 0) {
+        selected = button;
+        moved();
+        return;
+      }
+      const other = selected;
+      selected = 0;
+      if (button.category == other.category) {
+        other.style = "";
+        button.style = "";
+        score += 1;
+        button.cluster = button.cluster.concat(other.cluster);
+        showCluster(button);
+        if (button.cluster.length == size) {
+          finishCategory(button);
+          categoryDone(button);
+        }
+        hole(other);
+        moved({action: 'merge', a: button.index, b: other.index});
+      } else {
+        mistakes += 1;
+        for (const x of [button, other]) {
+          x.classList.add('shake');
+          x.addEventListener('animationend', () => {
+            x.classList.remove('shake');
+            x.style = "";
+          }, { once: true });
+        }
+        moved({action: 'mistake'});
+      }
+    };
+    b.appendChild(button);
+  });
 }

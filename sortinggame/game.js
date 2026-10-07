@@ -2,56 +2,19 @@
 // 1) Don't penalize already guessed.
 
 
-// Globals (more in board.js)
-// var wordlist = [];  // Actually, a list of (word, category) pairs
-
-
-
-
-//Chosen categories, to be populated at random
-var cats = {};
-var wordlist = [];
-    
-
+// Globals in board.js, state is set by game.php
 
 
 
 // Functions
 
 
-//Ensures DOM is empty for generating a new puzzle, and resets score/mistake counter
-function resetBoard(){
-    const myNode = document.getElementById("board");
-    myNode.innerHTML = '';
-    const myScoreNode = document.getElementById("score");
-    const myMistakeNode = document.getElementById("mistakes");
-    myScoreNode.innerHTML = '0';
-    myMistakeNode.innerHTML = '0';
-    mistakes = 0;
-}
-
-
-//Randomizing the arrays
+//Picks numofcats categories at random and returns numofcats of their items each, as (word, category) pairs
 function randomlyPickCategories(numofcats){
 
-    //Generates an array of sequential numbers the length of the allcatdata array [0,1,2,3,...]
-    let numarray = Array.from({length: allcatdata.length}, (e, i)=> i)
-    
-    //Fisher–Yates Shuffle
-    //Randomizes numarray
-    function shuffle(array) {
-        var i = array.length,
-            j = 0,
-            temp;
-        while (i--) {
-            j = Math.floor(rand() * (i+1));
-            temp = array[i];
-            array[i] = array[j];
-            array[j] = temp;
-        }
-        return array;
-    }
-    var ranNums = shuffle(numarray);
+    //Generates an array of sequential numbers the length of the allcatdata array [0,1,2,3,...], randomized
+    let ranNums = Array.from({length: allcatdata.length}, (e, i)=> i);
+    shuffleArray(ranNums);
 
     //Items of category a that are in none of the other picked categories
     let sets = allcatdata.map(c => new Set(c[1]));
@@ -68,24 +31,36 @@ function randomlyPickCategories(numofcats){
         if (trial.every(a => exclusive(a, trial).length >= numofcats)) chosen = trial;
     }
 
-    cats = {};
+    let wordlist = [];
     for (const c of chosen) {
-        cats[allcatdata[c][0]] = shuffle(exclusive(c, chosen)).slice(0, numofcats);
+        let items = exclusive(c, chosen);
+        shuffleArray(items);
+        items.slice(0, numofcats).forEach(w => wordlist.push([w, allcatdata[c][0][0]]));
     }
+    return wordlist;
+}
+
+
+function send(data) {
+  fetch('receiver.php', {method: 'POST', body: new URLSearchParams({seed: state.seed, ...data})});
 }
 
 
 function setLayout(l) {
   document.getElementById("board").className = l;
-  document.getElementById("layout").value = l;
-  localStorage.setItem('layout', l);
+  send({action: 'layout', layout: l});
+}
+
+
+function sendSlots() {
+  send({action: 'slots', slots: JSON.stringify([...document.getElementById('board').children].map(b => b.index))});
 }
 
 
 //Removes the holes left by merged words, so the remaining buttons close up
 function reflow() {
   document.querySelectorAll('.gone').forEach(b => b.remove());
-  saveState();
+  sendSlots();
 }
 
 
@@ -94,116 +69,20 @@ function order() {
   const b = document.getElementById('board');
   const size = x => x.classList.contains('gone') ? 0 : x.cluster.length;
   [...b.children].sort((x, y) => size(y) - size(x)).forEach(x => b.appendChild(x));
-  saveState();
+  sendSlots();
 }
-
-
-function getRandomHexColor() {
-  return '#' + Math.floor(Math.random() * 16777215).toString(16);
-}
-
-
-
-function checkCategories(numofcats, wordlist) {
-  // Check that each category has the specific number of entries.
-  for (const [key, value] of Object.entries(cats)) {
-    if (value.length < numofcats) {
-      alert(`Entry for ${key} has length ${value.length}`);
-    }
-    for (let i = 0; i < numofcats; i++) {
-      wordlist.push([value[i], key]);
-    }
-  }
-  putWordsInBoard(wordlist)
-}
-
 
 
 //Called by the board after every click
-function moved() {
-  selected == 0;
+function moved(change) {
   document.getElementById("score").textContent = score;
   document.getElementById("mistakes").textContent = mistakes;
-  saveState();
+  if (change) send(change);
 }
 
 
 //Called by the board when a category is complete
-function categoryDone() {
-  //Show buttons once all are complete (in case checkbox was checked, redundant otherwise)
-  if (score == size * size - size) {
-    // board finishes, offer "new board" button
-  }
-}
-
-
-
-//Saves to local storage so the game isn't lost if the page reloads (common on mobile)
-function saveState() {
-    localStorage.clear();
-
-    localStorage.setItem('layout', document.getElementById('layout').value);
-    localStorage.setItem('seed', seed);
-    localStorage.setItem('score', score + '');
-    localStorage.setItem('mistakes', mistakes + '');
-    localStorage.setItem('numofcats', size + '');
-    
-    var buttons = document.getElementById('board').children;
-    for (let i = 0; i < buttons.length; i++) {
-        let button = buttons[i];
-        localStorage.setItem(`${i}_category`, button.category);
-        localStorage.setItem(`${i}_cluster`, JSON.stringify(button.cluster));
-        localStorage.setItem(`${i}_innerHTML`, button.innerHTML);
-        localStorage.setItem(`${i}_title`, button.title);
-    }
-}
-
-
-
-//retrieves any locally saved data
-function loadState(numofcats) {
-    
-    s = localStorage.getItem('score');
-    if (s == null) {
-        //clearing everything out if this is the first time the page has been loaded
-        const myNode = document.getElementById("board");
-        myNode.innerHTML = '';
-        return;
-    }
-    score = Number(s);
-    document.getElementById("score").textContent = score;
-    
-    s = localStorage.getItem('mistakes');
-    if (s == null) {
-        return;
-    }
-    mistakes = Number(s);
-    document.getElementById("mistakes").textContent = mistakes;
-    
-    var buttons = document.getElementById("board").children;
-    for (let i = 0; i < buttons.length; i++) {
-        var button = buttons[i];
-        button.category = localStorage.getItem(`${i}_category`);
-
-        button.cluster = JSON.parse(localStorage.getItem(`${i}_cluster`));
-        if (Array.isArray(button.cluster) && button.cluster.length == numofcats) {
-            finishCategory(button);
-        }
-        button.innerHTML = localStorage.getItem(`${i}_innerHTML`);
-        button.title = localStorage.getItem(`${i}_title`);
-        if (button.innerHTML == '') {
-            button.classList.add('gone');
-        }
-    }
-}
-            
-
-
-
-//"Generate puzzle" buttons: a new seed of language, size and a random part, e.g. en15-k3x9q
-function generatepuzzle(size){
-        location.search = '?go=game&seed=' + document.getElementById('lang').value + size + '-' + Math.random().toString(36).slice(2, 7);
-}
+function categoryDone() {}
 
 
 //Mulberry32, seeded by a hash of the seed string
@@ -219,26 +98,20 @@ function seededRandom(str) {
 }
 
 
-//Builds the board for a seed
-function playSeed(){
-        const size = Number(seed.match(/^[a-z]+(\d+)-/)[1]);
-        rand = seededRandom(seed);
-        localStorage.clear();
-        localStorage.setItem('layout', document.getElementById('layout').value);
-        resetBoard();
-        setUpBoard(size);
-        randomlyPickCategories(size);
-        checkCategories(size, []);
-}
+//These automatically run when the page loads: the seed builds the board, the saved state is applied to it
+rand = seededRandom(state.seed);
+setUpBoard(randomlyPickCategories(state.size));
+score = state.score;
+mistakes = state.mistakes;
 
-
-//These automatically run when the page loads: a new seed in the URL builds its board, otherwise any saved local data is loaded.
-var urlSeed = new URLSearchParams(location.search).get('seed');
-var seed = urlSeed || localStorage.getItem('seed');
-setLayout(localStorage.getItem('layout') || 'grid');
-if (urlSeed && urlSeed != localStorage.getItem('seed')) {
-    playSeed();
-} else {
-    setUpBoard(Number(localStorage.getItem('numofcats')));
-    loadState(Number(localStorage.getItem('numofcats')));
-}
+//Each cluster starts at a word without a previous one and continues with the word that has it as previous
+const buttons = [...document.getElementById('board').children];
+const next = [];
+state.board.forEach((p, i) => { if (p >= 0) next[p] = i; });
+buttons.forEach((b, i) => {
+  if (state.board[i] >= 0) return hole(b);
+  for (let j = next[i]; j !== undefined; j = next[j]) b.cluster.push(buttons[j].cluster[0]);
+  showCluster(b);
+  if (b.cluster.length == size) finishCategory(b);
+});
+if (state.slots) document.getElementById('board').replaceChildren(...state.slots.map(i => buttons[i]));

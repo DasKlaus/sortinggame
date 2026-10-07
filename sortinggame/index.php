@@ -1,4 +1,5 @@
 <?php
+require_once("config.php");
 require_once("../identity.php");
 
 $go = $_GET['go'] ?? 'start';
@@ -80,7 +81,6 @@ function newBoard() {
   titles.forEach(t => t.style.color = "");
   document.getElementById("done").hidden = true;
   document.getElementById("board").innerHTML = "";
-  setUpBoard(3);
   var wordlist = [];
   words.forEach((cats, i) => {
     var [name, items] = cats[Math.floor(rand() * cats.length)];
@@ -89,7 +89,7 @@ function newBoard() {
     items.slice(0, 3).forEach(item => wordlist.push([item, name]));
     wordOf[name] = i;
   });
-  putWordsInBoard(wordlist);
+  setUpBoard(wordlist);
 }
 
 function moved() {}
