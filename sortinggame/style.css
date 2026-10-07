@@ -1,93 +1,41 @@
 
-body {text-align: center; padding: 30px; font-family: Georgia, serif; font-size: 18px;}
-nav {width: 100%; position: absolute; top: 0; left: 0; right: 0; background: #000; padding: 5px;}
+body {text-align: center; margin: 0; font-family: Georgia, serif; font-size: 18px;}
+nav {width: 100%; background: #000; padding: 5px; color: #fff;}
 nav a {text-decoration: none; color: #fff;}
 nav a + a::before {content: "·"; padding: 0 18px;}
+nav + nav {top: unset;}
+p {text-align: left; padding: 0 30px; max-width: 1000px; margin: 1em auto;}
+form div {display: inline;}
 #instructions a {color: inherit; text-decoration: underline #000 dotted;}
-h1 {font-size: 140px; margin: 0 0 30px 0; font-family: Cambria, Georgia, serif;}
+h1 {font-size: 8vw; font-family: Cambria, Georgia, serif; margin: .3em 0 0 0;}
 h1 span {margin: 0 0.2em;}
 button {font-family: Georgia, serif; font-size: 18px; box-sizing: border-box; background: white; border: 1px solid #555; border-radius: 2px;}
 button:hover {background: #eee;}
 #board.start button {width: 10em; height: 5em;}
 
+.shake {animation: shake 0.5s; animation-iteration-count: 1;}
 
-body {
-  background-color: white; /* Or #fff or #ffffff */
-}
+.red {color: red;}
 
-.shake {
-  animation: shake 0.5s;
-  animation-iteration-count: 1;
-}
-
-.numCirc {
-    border-radius: 70%;
-    background: white; /* #fff; */
-    border: 2px solid red; /* #666; */
-    color: red; /* #666; */
-    text-align: center;
-}
-
-.red {
-  color: red;
-}
-
-.floating {
-    /* position: fixed;    no longer needs to float
-    z-index: 999; */
-    background-color: lightblue;
-}
-
-#buttons {
-    display: inline-block;
-}
-
-#board {
-    padding-top: 5px;
-    padding-bottom: 5px;
-    display: grid;
-    gap: 2px;
-    grid-auto-rows: 1fr;
-}
-
-#board.grid {
-    display: inline-grid;
-    grid-template-columns: repeat(var(--n), 1fr);
-}
-
-#board.wrap {
-    grid-template-columns: repeat(auto-fill, minmax(8em, 1fr));
-    justify-items: center;
-}
-
-#board.wrap button {
-    width: 100%;
-    max-width: 14em;
-}
-
-#board.tight {
-    display: flex;
-    flex-wrap: wrap;
-}
-
-#board.tight button {
-    white-space: nowrap;
-}
-
-.gone {
-    visibility: hidden;
-}
+#buttons {display: inline-block;}
+#board {padding: 30px; display: grid; gap: 2px; grid-auto-rows: 1fr;}
+#board.grid {display: inline-grid; grid-template-columns: repeat(var(--n), 1fr);}
+#board.wrap {grid-template-columns: repeat(auto-fill, minmax(8em, 1fr)); justify-items: center;}
+#board.wrap button {width: 100%; max-width: 14em;}
+#board.tight {display: flex; flex-wrap: wrap;}
+#board.tight button {white-space: nowrap;}
+.gone {visibility: hidden;}
 
 @keyframes shake {
-  0% { transform: translateX(1px) rotate(0deg); }
-  10% { transform: translateX(-1px) rotate(-1deg); }
-  20% { transform: translateX(-3px) rotate(1deg); }
-  30% { transform: translateX(3px) rotate(0deg); }
-  40% { transform: translateX(1px) rotate(1deg); }
-  50% { transform: translateX(-1px) rotate(-1deg); }
-  60% { transform: translateX(-3px) rotate(0deg); }
-  70% { transform: translateX(3px) rotate(-1deg); }
-  80% { transform: translateX(-1px) rotate(1deg); }
-  90% { transform: translateX(1px) rotate(0deg); }
-  100% { transform: translateX(1px) rotate(-1deg); }
+  0%  {transform: translateX(1px)  rotate(0deg); }
+  10% {transform: translateX(-1px) rotate(-1deg);}
+  20% {transform: translateX(-3px) rotate(1deg); }
+  30% {transform: translateX(3px)  rotate(0deg); }
+  40% {transform: translateX(1px)  rotate(1deg); }
+  50% {transform: translateX(-1px) rotate(-1deg);}
+  60% {transform: translateX(-3px) rotate(0deg); }
+  70% {transform: translateX(3px)  rotate(-1deg);}
+  80% {transform: translateX(-1px) rotate(1deg); }
+  90% {transform: translateX(1px)  rotate(0deg); }
+  100%{transform: translateX(1px)  rotate(-1deg);}
 }

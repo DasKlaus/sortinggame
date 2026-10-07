@@ -2,23 +2,6 @@
 // 1) Don't penalize already guessed.
 
 
-//Handles checkbox behavior
-function hideButtonsCheckbox() {
-    var decider = document.getElementById('hide_buttons_checkbox');
-    var buttonsDiv = document.getElementById('buttons');
-    var boardDiv = document.getElementById('board');
-    if((decider.checked) && (boardDiv.childNodes.length === 0)) {
-        buttonsDiv.style.display = 'inline-block';
-    } else if((decider.checked) && (boardDiv.childNodes.length > 0)) {
-        buttonsDiv.style.display = 'none';
-    } else if((!decider.checked) && (boardDiv.childNodes.length === 0)) {
-        buttonsDiv.style.display = 'inline-block';
-    } else if((!decider.checked) && (boardDiv.childNodes.length > 0))  {
-        buttonsDiv.style.display = 'inline-block';
-    }
-}
-
-        
 // Globals (more in board.js)
 // var wordlist = [];  // Actually, a list of (word, category) pairs
 
@@ -138,7 +121,7 @@ function checkCategories(numofcats, wordlist) {
 
 //Called by the board after every click
 function moved() {
-  document.getElementById("deselect").disabled = selected == 0;
+  selected == 0;
   document.getElementById("score").textContent = score;
   document.getElementById("mistakes").textContent = mistakes;
   saveState();
@@ -149,7 +132,7 @@ function moved() {
 function categoryDone() {
   //Show buttons once all are complete (in case checkbox was checked, redundant otherwise)
   if (score == size * size - size) {
-    document.getElementById('buttons').style.display = 'inline-block';
+    // board finishes, offer "new board" button
   }
 }
 
@@ -164,15 +147,6 @@ function saveState() {
     localStorage.setItem('score', score + '');
     localStorage.setItem('mistakes', mistakes + '');
     localStorage.setItem('numofcats', size + '');
-
-    if (document.getElementById('hide_buttons_checkbox').checked) {
-        localStorage.setItem('checkbox', "True" + '');
-        console.log("checked")
-    }
-    else {
-        localStorage.setItem('checkbox', "False" + '');
-        console.log("unchecked")
-    }
     
     var buttons = document.getElementById('board').children;
     for (let i = 0; i < buttons.length; i++) {
@@ -188,12 +162,7 @@ function saveState() {
 
 //retrieves any locally saved data
 function loadState(numofcats) {
-    let check = localStorage.getItem('checkbox');
-    if (check == "True") {
-        document.getElementById("hide_buttons_checkbox").checked = true;    
-    }
-    hideButtonsCheckbox()
-
+    
     s = localStorage.getItem('score');
     if (s == null) {
         //clearing everything out if this is the first time the page has been loaded
@@ -260,7 +229,6 @@ function playSeed(){
         setUpBoard(size);
         randomlyPickCategories(size);
         checkCategories(size, []);
-        hideButtonsCheckbox(); //if box is checked, hide buttons now
 }
 
 
