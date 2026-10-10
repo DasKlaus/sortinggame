@@ -74,7 +74,15 @@ var words = [
 ];
 var colors = ["#c49", "#68b", "#4a3"];
 var wordOf = {};  // Category name -> title word index
+var categoryOf = [];  // Board index -> category name
 var titles = document.querySelectorAll("h1 span");
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
 
 function newBoard() {
   shuffleArray(colors);
@@ -83,19 +91,25 @@ function newBoard() {
   document.getElementById("board").innerHTML = "";
   var wordlist = [];
   words.forEach((cats, i) => {
-    var [name, items] = cats[Math.floor(rand() * cats.length)];
+    var [name, items] = cats[Math.floor(Math.random() * cats.length)];
     items = items.slice();
     shuffleArray(items);
     items.slice(0, 3).forEach(item => wordlist.push([item, name]));
     wordOf[name] = i;
   });
-  setUpBoard(wordlist);
+  shuffleArray(wordlist);
+  categoryOf = wordlist.map(w => w[1]);
+  setUpBoard(wordlist.map(w => w[0]));
+}
+
+function check(a, b) {
+  return {valid: categoryOf[a.index] == categoryOf[b.index], category: a.cluster.length + b.cluster.length == size && categoryOf[a.index]};
 }
 
 function moved() {}
 
-function categoryDone(b) {
-  var i = wordOf[b.category];
+function categoryDone(b, category) {
+  var i = wordOf[category];
   titles[i].style.color = b.style.background = colors[i];
   b.style.color = "white";
   if (score == size * size - size) document.getElementById("done").hidden = false;

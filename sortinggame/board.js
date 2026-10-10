@@ -1,7 +1,6 @@
 // Board logic shared by the game page and the start page.
-// The page defines moved(change) (called after every click, with {action: 'merge', a, b} or {action: 'mistake'} when something changed) and categoryDone(button) (called when a category is complete).
+// The page defines check(a, b) (called to merge b's cluster into a's, returns {valid, category} or a promise of it, with the category's name when the merge completes it), moved() (called after every click) and categoryDone(button, category).
 
-var rand = Math.random;  // The game page replaces it with a seeded generator
 var size = 0;  // Number of categories, and of items per category
 var score = 0;
 var mistakes = 0;
@@ -42,10 +41,10 @@ function stringToLightColor(str) {
 
 
 
-function finishCategory(b) {
-  b.innerHTML  =  '<b>' + b.category + '</b>';
+function finishCategory(b, category) {
+  b.innerHTML  =  '<b>' + category + '</b>';
   b.disabled = true;
-  b.style.background= stringToLightColor(b.category);
+  b.style.background= stringToLightColor(category);
 }
 
 
@@ -71,30 +70,19 @@ function hole(b) {
 
 
 
-function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-}
-
-
-
-//wordlist: (word, category) pairs, size * size of them
-function setUpBoard(wordlist) {
-  size = Math.sqrt(wordlist.length);
+//words: size * size of them, in board order
+function setUpBoard(words) {
+  size = Math.sqrt(words.length);
   score = 0;
   mistakes = 0;
-  shuffleArray(wordlist);
   const b = document.getElementById("board");
   b.style.setProperty('--n', size);
-  wordlist.forEach(([word, category], i) => {
+  words.forEach((word, i) => {
     const button = document.createElement('button');
     button.textContent = word;
-    button.category = category;
     button.cluster = [word];
     button.index = i;
-    button.onclick = function() {
+    button.onclick = async function() {
       if (selected == button) {
         deselect();
         return;
@@ -107,18 +95,18 @@ function setUpBoard(wordlist) {
       }
       const other = selected;
       selected = 0;
-      if (button.category == other.category) {
+      const {valid, category} = await check(button, other);
+      if (valid) {
         other.style = "";
         button.style = "";
         score += 1;
         button.cluster = button.cluster.concat(other.cluster);
         showCluster(button);
-        if (button.cluster.length == size) {
-          finishCategory(button);
-          categoryDone(button);
+        if (category) {
+          finishCategory(button, category);
+          categoryDone(button, category);
         }
         hole(other);
-        moved({action: 'merge', a: button.index, b: other.index});
       } else {
         mistakes += 1;
         for (const x of [button, other]) {
@@ -128,8 +116,8 @@ function setUpBoard(wordlist) {
             x.style = "";
           }, { once: true });
         }
-        moved({action: 'mistake'});
       }
+      moved();
     };
     b.appendChild(button);
   });
