@@ -50,18 +50,22 @@ async function check(a, b) {
 }
 
 
-//Each cluster starts at a word without a previous one and continues with the word that has it as previous
-function applyBoard(board, done) {
+//Each cluster starts at a word without a previous one and continues with the word that has it as previous; in a chain, links holds each word's link category from its previous one
+function applyBoard(board, done, links) {
   const next = [];
   board.forEach((p, i) => { if (p >= 0) next[p] = i; });
   buttons.forEach((b, i) => {
     if (board[i] >= 0) return hole(b);
     b.cluster = [state.words[i]];
-    for (let j = next[i]; j !== undefined; j = next[j]) b.cluster.push(state.words[j]);
+    b.links = [];
+    for (let j = next[i]; j !== undefined; j = next[j]) {
+      b.cluster.push(state.words[j]);
+      if (chain) b.links.push(links[j]);
+    }
     showCluster(b);
     if (done[i]) finishCategory(b, done[i]);
   });
-  if (selected.disabled) deselect();
+  if (selected.disabled || selected.category) deselect();
 }
 
 
@@ -72,7 +76,7 @@ async function poll() {
   if (r.status == 200) {
     const s = await r.json();
     version = s.version;
-    applyBoard(s.board, s.done);
+    applyBoard(s.board, s.done, s.links);
     document.getElementById('players').textContent = s.players.map(p => (p.display_name || 'Anonymous') + ' ' + p.score + '/' + p.mistakes).join(', ');
     if (s.finished) return;
   }
@@ -92,10 +96,11 @@ function categoryDone() {}
 
 
 //These automatically run when the page loads: the board is built from the words, the saved state is applied to it
+chain = state.mode == 'chain';
 setUpBoard(state.words);
 score = state.score;
 mistakes = state.mistakes;
 const buttons = [...document.getElementById('board').children];
-applyBoard(state.board, state.done);
+applyBoard(state.board, state.done, state.links);
 if (state.slots) document.getElementById('board').replaceChildren(...state.slots.map(i => buttons[i]));
 if (state.multiplayer) poll();

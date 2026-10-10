@@ -17,6 +17,13 @@ button:hover {background: #eee;}
 
 .red {color: red;}
 
+#popout {position: fixed; inset: 0; background: #0006; display: flex; align-items: center; justify-content: center;}
+#popout[hidden] {display: none;}
+#popout div {background: #fff; padding: 1em 2em; border-radius: 4px; max-width: 80vw; max-height: 80vh; overflow-y: auto;}
+#popout div > * {display: block;}
+#popout b {margin-bottom: .5em;}
+#popout i {color: #777;}
+
 #buttons {display: inline-block;}
 #board {padding: min(30px, 3vw); display: grid; gap: 2px; grid-auto-rows: 1fr;}
 #board.grid {display: inline-grid; grid-template-columns: repeat(var(--n), 1fr);}

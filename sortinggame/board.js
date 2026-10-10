@@ -1,7 +1,9 @@
 // Board logic shared by the game page and the start page.
-// The page defines check(a, b) (called to merge b's cluster into a's, returns {valid, category, stale} or a promise of it, with the category's name when the merge completes it, and stale when it came too late to count), moved() (called after every click) and categoryDone(button, category).
+// The page defines check(a, b) (called to merge b's cluster into a's, returns {valid, category, stale, link, swap} or a promise of it, with the category's name when the merge completes it, and stale when it came too late to count;
+// in a chain the link's category, swap when b's cluster comes first, and the category closing the cycle when the chain is finished), moved() (called after every click) and categoryDone(button, category).
 
-var size = 0;  // Number of categories, and of items per category
+var size = 0;  // Number of columns: of categories, and of items per category, when sorting
+var chain = false;  // Chain mode: clusters show their ends, and the categories linking their words in the popout
 var score = 0;
 var mistakes = 0;
 var selected = 0;  // The currently selected button, if any.
@@ -42,8 +44,8 @@ function stringToLightColor(str) {
 
 
 function finishCategory(b, category) {
-  b.innerHTML  =  '<b>' + category + '</b>';
-  b.disabled = true;
+  if (!chain) b.innerHTML  =  '<b>' + category + '</b>';
+  b.category = category;
   b.style.background= stringToLightColor(category);
 }
 
@@ -53,16 +55,32 @@ function showCluster(b) {
   if (b.cluster.length == 2) {
     b.innerHTML = '<b>' + b.cluster.join('; ') + '</b>';
   } else if (b.cluster.length > 2) {
-    b.innerHTML = '<b>' + b.cluster.slice(0, 2).join(', ') + ', ... <span class="red">[' + b.cluster.length + ']</span></b>';
-    b.title = b.cluster.join('\n');
+    b.innerHTML = '<b>' + (chain ? b.cluster[0] + ' … ' + b.cluster.at(-1) + ' ' : b.cluster.slice(0, 2).join(', ') + ', ... ') + '<span class="red">[' + b.cluster.length + ']</span></b>';
   }
+}
+
+
+
+//The popout shows a cluster's words, in a chain with the categories linking them, and its category when finished; any click closes it
+const popout = document.createElement('div');
+popout.id = 'popout';
+popout.hidden = true;
+popout.onclick = () => popout.hidden = true;
+popout.append(document.createElement('div'));
+document.body.append(popout);
+
+function showPopout(b) {
+  const link = c => '<i>— ' + c + ' —</i>';
+  let html = b.cluster.map((w, i) => (chain && i ? link(b.links[i - 1]) : '') + '<span>' + w + '</span>').join('');
+  if (b.category) html = chain ? html + link(b.category) + '<span>' + b.cluster[0] + '</span>' : '<b>' + b.category + '</b>' + html;
+  popout.firstChild.innerHTML = html;
+  popout.hidden = false;
 }
 
 
 
 //Empties a merged word's button, keeping its slot as a hole
 function hole(b) {
-  b.title = '';
   b.textContent = '';
   b.disabled = true;
   b.classList.add('gone');
@@ -70,9 +88,9 @@ function hole(b) {
 
 
 
-//words: size * size of them, in board order
+//words: size * size of them when sorting, in board order
 function setUpBoard(words) {
-  size = Math.sqrt(words.length);
+  size = Math.ceil(Math.sqrt(words.length));
   score = 0;
   mistakes = 0;
   const b = document.getElementById("board");
@@ -81,8 +99,15 @@ function setUpBoard(words) {
     const button = document.createElement('button');
     button.textContent = word;
     button.cluster = [word];
+    button.links = [];
     button.index = i;
+    button.oncontextmenu = e => {
+      if (button.cluster.length < 2) return;
+      e.preventDefault();
+      showPopout(button);
+    };
     button.onclick = async function() {
+      if (button.category) return;
       if (selected == button) {
         deselect();
         return;
@@ -95,18 +120,20 @@ function setUpBoard(words) {
       }
       const other = selected;
       selected = 0;
-      const {valid, category, stale} = await check(button, other);
+      const {valid, category, stale, link, swap} = await check(button, other);
       if (valid) {
         other.style = "";
         button.style = "";
         score += 1;
-        button.cluster = button.cluster.concat(other.cluster);
-        showCluster(button);
+        const [keep, gone] = swap ? [other, button] : [button, other];
+        keep.cluster = keep.cluster.concat(gone.cluster);
+        keep.links = keep.links.concat([link], gone.links);
+        showCluster(keep);
         if (category) {
-          finishCategory(button, category);
-          categoryDone(button, category);
+          finishCategory(keep, category);
+          categoryDone(keep, category);
         }
-        hole(other);
+        hole(gone);
       } else {
         if (!stale) mistakes += 1;
         for (const x of [button, other]) {

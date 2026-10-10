@@ -25,11 +25,11 @@ CREATE TABLE `membership` (
 CREATE TABLE `game` (
 	`seed` varchar(16) NOT NULL, -- random board id, e.g. 3f9a0c1e; a single-player board is a game per player, copied from the first one
 	`language` varchar(10) NOT NULL,
-	`mode` varchar(8) NOT NULL, -- sorting
+	`mode` varchar(8) NOT NULL, -- sorting or chain
 	`types` json NOT NULL, -- category types selected on creation: ["compound","rhyme"]
-	`size` tinyint(3) NOT NULL, -- number of categories, and of words per category
-	`items` json NOT NULL, -- the words in board order with their category, never sent to the client: [["port","air…"],...]
-	`board` json NOT NULL, -- per word index of items, the previous word in its cluster, -1 for a cluster's first word: [-1,0,-1,-1,2,...]
+	`size` tinyint(3) NOT NULL, -- sorting: number of categories, and of words per category; chain: number of words
+	`items` json NOT NULL, -- the words in board order with their category, never sent to the client: [["port","air…"],...]; chain: with the category of the link to the next word in the cycle and its index: [["port","air…",7],...]
+	`board` json NOT NULL, -- per word index of items, the previous word in its cluster, -1 for a cluster's first word: [-1,0,-1,-1,2,...]; chain: per word whether its link to the next word is made: [false,true,...]
 	`version` int(10) NOT NULL DEFAULT 0,
 	`multiplayer` tinyint(1) NOT NULL DEFAULT 0, -- all players share one game and its board
 	`created_by` bigint(20) NOT NULL,

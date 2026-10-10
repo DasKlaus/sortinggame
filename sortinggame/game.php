@@ -1,7 +1,7 @@
 <?php
 if (isset($_GET["seed"])) {
 	$seed = $_GET["seed"];
-	[$multiplayer, $size] = $mysql->execute_query("select multiplayer, size from game where seed = ? limit 1", [$seed])->fetch_row();
+	[$multiplayer, $mode, $size] = $mysql->execute_query("select multiplayer, mode, size from game where seed = ? limit 1", [$seed])->fetch_row();
 	if ($multiplayer and !$_SESSION['user_id']) {
 		echo '<p>This is a multiplayer game. Pick a name to join in, or leave the field empty to play anonymously. If you have an authentication code, you can sign in with it.</p>';
 		identityForm('en');
@@ -9,22 +9,38 @@ if (isset($_GET["seed"])) {
 	}
 	identify();
 	// Every player of a single-player board gets their own game of it, with a fresh board
-	if (!$multiplayer) $mysql->execute_query("insert ignore into game (seed, language, mode, types, size, items, board, created_by, created_at) select seed, language, mode, types, size, items, ?, ?, now() from game where seed = ? limit 1", [json_encode(array_fill(0, $size * $size, -1)), $_SESSION['user_id'], $seed]);
+	if (!$multiplayer) $mysql->execute_query("insert ignore into game (seed, language, mode, types, size, items, board, created_by, created_at) select seed, language, mode, types, size, items, ?, ?, now() from game where seed = ? limit 1", [json_encode($mode == 'chain' ? array_fill(0, $size, false) : array_fill(0, $size * $size, -1)), $_SESSION['user_id'], $seed]);
 	$mysql->execute_query("insert ignore into player (seed, user_id, display_name) values (?, ?, ?)", [$seed, $_SESSION['user_id'], $_SESSION['display_name']]);
-	$state = $mysql->execute_query("select g.seed, g.items, g.board, g.multiplayer, p.score, p.mistakes, p.layout, p.slots from game g join player p on p.seed = g.seed and p.user_id = ? where g.seed = ? and (g.multiplayer or g.created_by = ?)", [$_SESSION['user_id'], $seed, $_SESSION['user_id']])->fetch_assoc();
+	$state = $mysql->execute_query("select g.seed, g.mode, g.items, g.board, g.multiplayer, p.score, p.mistakes, p.layout, p.slots from game g join player p on p.seed = g.seed and p.user_id = ? where g.seed = ? and (g.multiplayer or g.created_by = ?)", [$_SESSION['user_id'], $seed, $_SESSION['user_id']])->fetch_assoc();
 	$items = json_decode($state['items']);
 	unset($state['items']);
 	$state['words'] = array_column($items, 0);
 	$state['board'] = json_decode($state['board']);
 	$state['slots'] = json_decode($state['slots'] ?? 'null');
-	// A category is complete when only one of its words starts a cluster
-	$heads = array_keys($state['board'], -1, true);
-	$count = array_count_values(array_map(fn($i) => $items[$i][1], $heads));
 	$state['done'] = (object)[];
-	foreach ($heads as $i) if ($count[$items[$i][1]] == 1) $state['done']->$i = $items[$i][1];
+	if ($mode == 'chain')
+	{
+		// The client gets each word's previous one in its cluster and the link's category; a finished chain is done with the category that closes the cycle
+		$flags = $state['board'];
+		$state['board'] = array_fill(0, count($items), -1);
+		$state['links'] = array_fill(0, count($items), null);
+		foreach ($flags as $i => $made) if ($made) [$state['board'][$items[$i][2]], $state['links'][$items[$i][2]]] = [$i, $items[$i][1]];
+		if (count(array_filter($flags)) == count($flags) - 1)
+		{
+			$u = array_search(false, $flags, true);
+			$state['done']->{$items[$u][2]} = $items[$u][1];
+		}
+	}
+	else
+	{
+		// A category is complete when only one of its words starts a cluster
+		$heads = array_keys($state['board'], -1, true);
+		$count = array_count_values(array_map(fn($i) => $items[$i][1], $heads));
+		foreach ($heads as $i) if ($count[$items[$i][1]] == 1) $state['done']->$i = $items[$i][1];
+	}
 ?>
 <nav>
-	Combine items two at a time into categories. Score:&nbsp;<span id="score"><?php echo $state['score'] ?></span> Mistakes:&nbsp;<span id="mistakes"><?php echo $state['mistakes'] ?></span>
+	<?php echo $mode == 'chain' ? 'Link the words two at a time into one closed chain.' : 'Combine items two at a time into categories.' ?> Score:&nbsp;<span id="score"><?php echo $state['score'] ?></span> Mistakes:&nbsp;<span id="mistakes"><?php echo $state['mistakes'] ?></span>
 <?php if ($multiplayer) { ?>
 	Others (score/mistakes):&nbsp;<span id="players"></span>
 <?php } ?>
@@ -50,9 +66,9 @@ else {
 ?>
 <form id="buttons" method="post" action="receiver.php">
 	<input type="hidden" name="action" value="create">
-	<label for="size">Size: </label><select id="size" name="size"><option value="5">5x5</option><option value="10">10x10</option><option value="15">15x15</option><option value="20">20x20</option><option value="25">25x25</option></select>
+	<label for="size">Size: </label><select id="size" name="size"><option value="5">5x5</option><option value="10">10x10</option><option value="15">15x15</option><option value="20">20x20</option><option value="25">25x25</option></select><select id="words" name="size" hidden disabled><?php foreach ([16, 25, 36, 49, 64, 81, 100] as $n) echo "<option value=\"$n\">$n words</option>"; ?></select>
 	<label for="lang">Language: </label><select id="lang" name="language"><option value="en">en</option><option value="de">de</option></select>
-	<label for="mode">Mode: </label><select id="mode" name="mode"><option value="sorting">Sorting</option></select>
+	<label for="mode">Mode: </label><select id="mode" name="mode"><option value="sorting">Sorting</option><option value="chain">Chain</option></select>
 	<label><input type="checkbox" name="multiplayer" value="1">Multiplayer</label>
 	<br>
 <?php foreach (['compound', 'rhyme', 'anagram', 'meaning', 'origin', 'spelling'] as $type) { ?>
@@ -60,6 +76,12 @@ else {
 <?php } ?>
 	<button type="submit">Generate</button>
 </form>
+<script>
+// A chain's size is its number of words, and it needs at least three category types
+const form = document.getElementById('buttons');
+form.mode.onchange = () => form.querySelectorAll('[name=size]').forEach(s => s.hidden = s.disabled = (s.id == 'words') != (form.mode.value == 'chain'));
+form.onsubmit = () => form.mode.value != 'chain' || [...form['types[]']].filter(c => c.checked).length >= 3 || (alert('A chain needs at least three category types.'), false);
+</script>
 <?php
 }
 ?>
