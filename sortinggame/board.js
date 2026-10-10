@@ -1,5 +1,5 @@
 // Board logic shared by the game page and the start page.
-// The page defines check(a, b) (called to merge b's cluster into a's, returns {valid, category} or a promise of it, with the category's name when the merge completes it), moved() (called after every click) and categoryDone(button, category).
+// The page defines check(a, b) (called to merge b's cluster into a's, returns {valid, category, stale} or a promise of it, with the category's name when the merge completes it, and stale when it came too late to count), moved() (called after every click) and categoryDone(button, category).
 
 var size = 0;  // Number of categories, and of items per category
 var score = 0;
@@ -95,7 +95,7 @@ function setUpBoard(words) {
       }
       const other = selected;
       selected = 0;
-      const {valid, category} = await check(button, other);
+      const {valid, category, stale} = await check(button, other);
       if (valid) {
         other.style = "";
         button.style = "";
@@ -108,7 +108,7 @@ function setUpBoard(words) {
         }
         hole(other);
       } else {
-        mistakes += 1;
+        if (!stale) mistakes += 1;
         for (const x of [button, other]) {
           x.classList.add('shake');
           x.addEventListener('animationend', () => {

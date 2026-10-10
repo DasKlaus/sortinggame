@@ -2,6 +2,8 @@
 require_once("config.php");
 require_once("../identity.php");
 
+if (($_POST['do'] ?? '') == 'renameall') $mysql->execute_query("update player set display_name = ? where user_id = ?", [$_SESSION['display_name'], $_SESSION['user_id']]);
+
 $go = $_GET['go'] ?? 'start';
 ?>
 <!DOCTYPE html>
@@ -23,6 +25,7 @@ $go = $_GET['go'] ?? 'start';
 <nav><a href="?go=profile">Profile: Klaus</a><a href="?go=game">Play</a><a href="?go=instructions">Instructions</a><a href="?go=impressum">Site notice</a></nav>
 
 <?php
+identityMessage('en');
 if ($go == 'game') include 'game.php';
 elseif ($go == 'profile') {
 	echo '<h2>Profile</h2>';

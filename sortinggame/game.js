@@ -41,9 +41,42 @@ function order() {
 }
 
 
-//Called by the board to merge b's cluster into a's, the server checks it
+//Called by the board to merge b's cluster into a's, the server checks it.
+//The next poll redraws the whole board, also over a poll answer that crossed this merge and has already shown it.
 async function check(a, b) {
-  return (await send({action: 'merge', a: a.index, b: b.index})).json();
+  const answer = await (await send({action: 'merge', a: a.index, b: b.index})).json();
+  version = -1;
+  return answer;
+}
+
+
+//Each cluster starts at a word without a previous one and continues with the word that has it as previous
+function applyBoard(board, done) {
+  const next = [];
+  board.forEach((p, i) => { if (p >= 0) next[p] = i; });
+  buttons.forEach((b, i) => {
+    if (board[i] >= 0) return hole(b);
+    b.cluster = [state.words[i]];
+    for (let j = next[i]; j !== undefined; j = next[j]) b.cluster.push(state.words[j]);
+    showCluster(b);
+    if (done[i]) finishCategory(b, done[i]);
+  });
+  if (selected.disabled) deselect();
+}
+
+
+//Multiplayer: fetches the board and the other players every second, until the game is finished
+var version = -1;
+async function poll() {
+  const r = await fetch('receiver.php?' + new URLSearchParams({seed: state.seed, version: version}));
+  if (r.status == 200) {
+    const s = await r.json();
+    version = s.version;
+    applyBoard(s.board, s.done);
+    document.getElementById('players').textContent = s.players.map(p => (p.display_name || 'Anonymous') + ' ' + p.score + '/' + p.mistakes).join(', ');
+    if (s.finished) return;
+  }
+  setTimeout(poll, 1000);
 }
 
 
@@ -62,15 +95,7 @@ function categoryDone() {}
 setUpBoard(state.words);
 score = state.score;
 mistakes = state.mistakes;
-
-//Each cluster starts at a word without a previous one and continues with the word that has it as previous
 const buttons = [...document.getElementById('board').children];
-const next = [];
-state.board.forEach((p, i) => { if (p >= 0) next[p] = i; });
-buttons.forEach((b, i) => {
-  if (state.board[i] >= 0) return hole(b);
-  for (let j = next[i]; j !== undefined; j = next[j]) b.cluster.push(buttons[j].cluster[0]);
-  showCluster(b);
-  if (state.done[i]) finishCategory(b, state.done[i]);
-});
+applyBoard(state.board, state.done);
 if (state.slots) document.getElementById('board').replaceChildren(...state.slots.map(i => buttons[i]));
+if (state.multiplayer) poll();
