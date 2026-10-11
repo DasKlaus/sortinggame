@@ -24,7 +24,16 @@ button:hover {background: #eee;}
 #popout b {margin-bottom: .5em;}
 #popout i {color: #777;}
 
-#buttons {display: inline-block;}
+#buttons {display: inline-grid; grid-template-columns: auto auto; gap: .6em 1em; align-items: center; text-align: left; margin: 1.5em auto; padding: 1.2em 1.6em; border: 1px solid #ccc; border-radius: 6px; background: #fafafa;}
+#buttons br {display: none;}
+#buttons label[for] {text-align: right;}
+#buttons label:not([for]), #buttons small {grid-column: 2;}
+#buttons small {margin-top: -.4em; color: #777;}
+#buttons select {font: inherit; padding: .2em .4em; border: 1px solid #555; border-radius: 2px; background: #fff;}
+#types {overflow: hidden;}
+#types option:checked {background: #000 linear-gradient(#000, #000); color: #fff;}
+#buttons button[type=submit] {grid-column: 1 / -1; justify-self: center; padding: .3em 2em; background: #000; color: #fff;}
+#buttons button[type=submit]:hover {background: #333;}
 #board {padding: min(30px, 3vw); display: grid; gap: 2px; grid-auto-rows: 1fr;}
 #board.grid {display: inline-grid; grid-template-columns: repeat(var(--n), 1fr);}
 /* A game's grid fills the space below the navs, so small games fill the screen */

@@ -71,16 +71,20 @@ else {
 	<label for="mode">Mode: </label><select id="mode" name="mode"><option value="sorting">Sorting</option><option value="chain">Chain</option></select>
 	<label><input type="checkbox" name="multiplayer" value="1">Multiplayer</label>
 	<br>
-<?php foreach (['compound', 'rhyme', 'anagram', 'meaning', 'origin', 'spelling'] as $type) { ?>
-	<label><input type="checkbox" name="types[]" value="<?php echo $type ?>" checked><?php echo $type ?></label>
+<?php $types = $mysql->query("select distinct type from category order by type")->fetch_all(); ?>
+	<label for="types">Category types: </label><select id="types" name="types[]" multiple size="<?php echo count($types) ?>">
+<?php foreach ($types as [$type]) { ?>
+		<option value="<?php echo $type ?>" selected><?php echo $type ?></option>
 <?php } ?>
+	</select>
+	<small>Ctrl-click to pick several</small>
 	<button type="submit">Generate</button>
 </form>
 <script>
 // A chain's size is its number of words, and it needs at least three category types
 const form = document.getElementById('buttons');
 form.mode.onchange = () => form.querySelectorAll('[name=size]').forEach(s => s.hidden = s.disabled = (s.id == 'words') != (form.mode.value == 'chain'));
-form.onsubmit = () => form.mode.value != 'chain' || [...form['types[]']].filter(c => c.checked).length >= 3 || (alert('A chain needs at least three category types.'), false);
+form.onsubmit = () => form.mode.value != 'chain' || form['types[]'].selectedOptions.length >= 3 || (alert('A chain needs at least three category types.'), false);
 </script>
 <?php
 }
