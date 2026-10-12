@@ -52,11 +52,11 @@ function finishCategory(b, category) {
 
 
 function showCluster(b) {
-  if (b.cluster.length == 2) {
-    b.innerHTML = '<b>' + b.cluster.join('; ') + '</b>';
-  } else if (b.cluster.length > 2) {
-    b.innerHTML = '<b>' + (chain ? b.cluster[0] + ' … ' + b.cluster.at(-1) + ' ' : b.cluster.slice(0, 2).join(', ') + ', ... ') + '<span class="red">[' + b.cluster.length + ']</span></b>';
+  if (b.cluster.length>1) {
+	  b.className = 'cluster size_' + b.cluster.length; // TODO: size should depend on board size
+	  b.title = 'show all items on right click';
   }
+  b.innerHTML = (chain ? b.cluster[0] + (b.cluster.length>1 ? ' … ' + b.cluster.at(-1) : '') : b.cluster.join('; ')) + (b.cluster.length>1 ? '<span class="size">' + b.cluster.length + '</span>' : '');
 }
 
 

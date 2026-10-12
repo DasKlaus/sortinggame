@@ -10,12 +10,22 @@ form div {display: inline;}
 h1 {font-size: 8vw; font-family: Cambria, Georgia, serif; margin: .3em 0 0 0;}
 h1 span {margin: 0 0.2em;}
 button {font-family: Georgia, serif; font-size: 18px; box-sizing: border-box; background: white; border: 1px solid #555; border-radius: 2px;}
+#board button {position: relative; line-height: 1.5em; max-height: 6em; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4;}
 button:hover {background: #eee;}
 #board.start button {width: min(10em, (100vw - 2 * min(30px, 3vw) - (var(--n) - 1) * 2px) / var(--n)); height: 5em; overflow-wrap: anywhere;}
+.cluster {font-weight: bold; background: #888;}
+.cluster.size_2 {background: #eee;}
+.cluster.size_3 {background: #eee;}
+.cluster.size_4 {background: #ddd;}
+.cluster.size_5 {background: #ccc;}
+.cluster.size_6 {background: #bbb;}
+.cluster.size_7 {background: #aaa;}
+.cluster.size_8 {background: #999;}
+.cluster.size_9 {background: #909090;}
+.cluster .size {position: absolute; right: 0; bottom: 0; background: black; color: white; padding: 0 5px 5px 5px;}
 
 .shake {animation: shake 0.5s; animation-iteration-count: 1;}
 
-.red {color: red;}
 
 #popout {position: fixed; inset: 0; background: #0006; display: flex; align-items: center; justify-content: center;}
 #popout[hidden] {display: none;}
@@ -41,7 +51,7 @@ body:has(#board.grid:not(.start)) {display: flex; flex-direction: column; min-he
 #board.grid {flex-grow: 1; min-width: min-content;}
 #board.wrap {grid-template-columns: repeat(auto-fill, minmax(8em, 1fr)); justify-items: center;}
 #board.wrap button {width: 100%; max-width: 14em;}
-#board.tight {display: flex; flex-wrap: wrap;}
+#board.tight {display: flex; flex-wrap: wrap; text-overflow: ellipsis; white-space: nowrap; max-width: 18em;}
 #board.tight button {white-space: nowrap;}
 .gone {visibility: hidden;}
 #board.tight .gone, .gone:not(:has(~ :not(.gone))) {display: none;}

@@ -33,16 +33,20 @@ elseif ($go == 'profile') {
 }
 elseif ($go == 'instructions') echo '<h2>to be done</h2>';
 elseif ($go == 'impressum') {
+	echo '<h2>Code</h2><p><b>Thomas Colthurst</b> created the <a href="https://thomaswc.com/2025.html">original</a>.<br>' .
+		 '<b>Victoria Roberts</b> adapted <a href="https://victoria.danclan.com/the-sorting-game.html">the version</a> this one is copied from.<br>' .
+		 '<b>I</b> made this largely vibecoded version, the code is available on <a href="https://github.com/DasKlaus/sortinggame">github</a>.<br>' . 
+		 'The game is released under a <a href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Share Alike with Attribution License</a>.</p>';
+	echo '<h2>Categories</h2>The categories are all new and mainly derived from <a href="https://www.wiktionary.org/">Wiktionary</a>, extracted by <a href="https://kaikki.org/">kaikki.org</a>, parsed and curated by Claude. They are therefore dominated by wordplay and thematic sets.';
 	require_once("../legal.php");
-	legalNotice('en');
 }
 else {
 ?>
 
-<div id="instructions">Combine items two at a time into categories. Adapted from <a>Victoria Roberts' version</a> of <a>Thomas Colthurst's original</a>.</div>
+<div id="instructions">Combine items two at a time into categories. Adapted from <a href="https://victoria.danclan.com/the-sorting-game.html">Victoria Roberts' version</a> of <a href="https://thomaswc.com/2025.html">Thomas Colthurst's original</a>.</div>
 <h1><span>The</span><span>Sorting</span><span>Game</span></h1>
 <div id="board" class="grid start"></div>
-<div id="done" hidden><button onclick="newBoard()">Play again</button><button onclick="location = '?go=game'">Ready for the real game</button></div>
+<div id="done" hidden><button onclick="newBoard()">Play again</button> <button onclick="location = '?go=game'">Ready for the real game</button></div>
 
 <script src="board.js"></script>
 <script>
