@@ -209,6 +209,13 @@ switch ($_POST['action'])
 		$mysql->commit();
 		echo json_encode($answer);
 		break;
+	// The ten best players of the seed by combinations minus mistakes, finished or not, and this player below them if further down
+	case 'highscores':
+		$top = [];
+		foreach ($mysql->execute_query("select user_id, display_name, score, mistakes from player where seed = ? order by score - mistakes desc, score desc", [$seed])->fetch_all(MYSQLI_ASSOC) as $i => $row)
+			if ($i < 10 or $row['user_id'] == $user) $top[] = ['rank' => $i + 1, 'name' => $row['display_name'], 'self' => $row['user_id'] == $user, 'score' => (int)$row['score'], 'mistakes' => (int)$row['mistakes']];
+		echo json_encode($top);
+		break;
 	case 'layout':
 		$mysql->execute_query("update player set layout = ? where seed = ? and user_id = ?", [$_POST['layout'], $seed, $user]);
 		break;

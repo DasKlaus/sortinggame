@@ -20,6 +20,7 @@ $go = $_GET['go'] ?? 'start';
 	<meta property="og:locale" content="en_GB">
 	<meta property="og:title" content="The Sorting Game">
 	<meta property="og:description" content="Combine items two at a time into categories">
+	<link rel="icon" href="favicon.svg">
 </head>
 <body>
 <nav><a href="?go=profile">Profile: Klaus</a><a href="?go=game">Play</a><a href="?go=instructions">Instructions</a><a href="?go=impressum">Site notice</a></nav>
@@ -39,6 +40,7 @@ elseif ($go == 'impressum') {
 		 'The game is released under a <a href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Share Alike with Attribution License</a>.</p>';
 	echo '<h2>Categories</h2>The categories are all new and mainly derived from <a href="https://www.wiktionary.org/">Wiktionary</a>, extracted by <a href="https://kaikki.org/">kaikki.org</a>, parsed and curated by Claude. They are therefore dominated by wordplay and thematic sets.';
 	require_once("../legal.php");
+	legalNotice('en');
 }
 else {
 ?>

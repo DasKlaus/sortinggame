@@ -1,7 +1,7 @@
 <?php
 if (isset($_GET["seed"])) {
 	$seed = $_GET["seed"];
-	[$multiplayer, $mode, $size] = $mysql->execute_query("select multiplayer, mode, size from game where seed = ? limit 1", [$seed])->fetch_row();
+	[$multiplayer, $mode, $size, $language, $types] = $mysql->execute_query("select multiplayer, mode, size, language, types from game where seed = ? limit 1", [$seed])->fetch_row();
 	if ($multiplayer and !$_SESSION['user_id']) {
 		echo '<p>This is a multiplayer game. Pick a name to join in, or leave the field empty to play anonymously. If you have an authentication code, you can sign in with it.</p>';
 		identityForm('en');
@@ -40,19 +40,36 @@ if (isset($_GET["seed"])) {
 	}
 ?>
 <nav>
-	<?php echo $mode == 'chain' ? 'Link the words two at a time into one closed chain.' : 'Combine items two at a time into categories.' ?> Score:&nbsp;<span id="score"><?php echo $state['score'] ?></span> Mistakes:&nbsp;<span id="mistakes"><?php echo $state['mistakes'] ?></span>
+	<button type="button" onclick="openPopout(this.title)" title="<?php echo $mode == 'chain' ? 'Link the words two at a time into one closed chain.' : 'Combine items two at a time into categories.' ?>">?</button> Combinations:&nbsp;<span id="score"><?php echo $state['score'] ?></span> Mistakes:&nbsp;<span id="mistakes"><?php echo $state['mistakes'] ?></span>
 <?php if ($multiplayer) { ?>
-	Others (score/mistakes):&nbsp;<span id="players"></span>
+	Others (combinations/mistakes):&nbsp;<span id="players"></span>
 <?php } ?>
 	<select id="layout" onchange="setLayout(this.value)">
 <?php foreach (['grid' => 'Grid', 'wrap' => 'Wrap', 'tight' => 'Tight'] as $value => $label) { ?>
 		<option value="<?php echo $value ?>"<?php echo $value == $state['layout'] ? ' selected' : '' ?>><?php echo $label ?></option>
 <?php } ?>
 	</select>
-	<button type="button" onclick="reflow()">Reflow</button>
+	<select id="lines" onchange="document.getElementById('board').style.setProperty('--lines', this.value)">
+<?php for ($n = 1; $n <= 10; $n++) { ?>
+		<option value="<?php echo $n ?>"<?php echo $n == 4 ? ' selected' : '' ?>><?php echo $n == 1 ? '1 line' : "$n lines" ?></option>
+<?php } ?>
+	</select>
+	<label><input type="checkbox" id="reflow" onchange="if (this.checked) reflow()">Reflow</label>
 	<button type="button" onclick="order()">Order</button>
 </nav>
 <div id="board" class="<?php echo $state['layout'] ?>"></div>
+<form id="again" method="post" action="receiver.php" hidden>
+	<input type="hidden" name="action" value="create">
+	<input type="hidden" name="language" value="<?php echo $language ?>">
+	<input type="hidden" name="mode" value="<?php echo $mode ?>">
+	<input type="hidden" name="size" value="<?php echo $size ?>">
+<?php foreach (json_decode($types) as $type) { ?>
+	<input type="hidden" name="types[]" value="<?php echo htmlspecialchars($type) ?>">
+<?php } ?>
+<?php if ($multiplayer) { ?>
+	<input type="hidden" name="multiplayer" value="1">
+<?php } ?>
+</form>
 <script>var state = <?php echo json_encode($state) ?>;</script>
 <script src="board.js"></script>
 <script src="game.js"></script>

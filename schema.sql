@@ -7,7 +7,7 @@ CREATE TABLE `category` (
 	`id` int(10) NOT NULL AUTO_INCREMENT,
 	`language` varchar(10) NOT NULL,
 	`name` varchar(255) NOT NULL, -- "air…", "Rhymes with “know”"
-	`type` varchar(16) NOT NULL, -- compound, rhyme, anagram, meaning, origin, spelling, …
+	`type` varchar(32) NOT NULL, -- compound, rhyme, anagram, meaning, origin, spelling, …
 	`parent_id` int(10) DEFAULT NULL, -- e.g. hypernym, collecting categories with considerable overlap: categories with the same parent never share a board
 	`playable` tinyint(1) NOT NULL DEFAULT 1, -- 0: never picked, only rules boards out ("Also a surname")
 	PRIMARY KEY (`id`),

@@ -3,6 +3,7 @@
 // in a chain the link's category, swap when b's cluster comes first, and the category closing the cycle when the chain is finished), moved() (called after every click) and categoryDone(button, category).
 
 var size = 0;  // Number of columns: of categories, and of items per category, when sorting
+var full = 0;  // Length of a complete cluster: size when sorting, all words in a chain
 var chain = false;  // Chain mode: clusters show their ends, and the categories linking their words in the popout
 var score = 0;
 var mistakes = 0;
@@ -11,7 +12,7 @@ var selected = 0;  // The currently selected button, if any.
 
 function deselect() {
   if (selected != 0) {
-    selected.style = "";
+    selected.style.filter = "";
     selected = 0;
     moved();
   }
@@ -46,15 +47,17 @@ function stringToLightColor(str) {
 function finishCategory(b, category) {
   if (!chain) b.innerHTML  =  '<b>' + category + '</b>';
   b.category = category;
-  b.style.background= stringToLightColor(category);
+  b.style.background = stringToLightColor(category);
+  b.style.color = '#000';
 }
 
 
 
 function showCluster(b) {
   if (b.cluster.length>1) {
-	  b.className = 'cluster size_' + b.cluster.length; // TODO: size should depend on board size
-	  b.title = 'show all items on right click';
+	  b.className = 'cluster';
+	  b.style.setProperty('--fill', b.cluster.length / full);
+	  b.title = 'show all items by clicking the number or right-clicking';
   }
   b.innerHTML = (chain ? b.cluster[0] + (b.cluster.length>1 ? ' … ' + b.cluster.at(-1) : '') : b.cluster.join('; ')) + (b.cluster.length>1 ? '<span class="size">' + b.cluster.length + '</span>' : '');
 }
@@ -73,6 +76,10 @@ function showPopout(b) {
   const link = c => '<i>— ' + c + ' —</i>';
   let html = b.cluster.map((w, i) => (chain && i ? link(b.links[i - 1]) : '') + '<span>' + w + '</span>').join('');
   if (b.category) html = chain ? html + link(b.category) + '<span>' + b.cluster[0] + '</span>' : '<b>' + b.category + '</b>' + html;
+  openPopout(html);
+}
+
+function openPopout(html) {
   popout.firstChild.innerHTML = html;
   popout.hidden = false;
 }
@@ -91,6 +98,7 @@ function hole(b) {
 //words: size * size of them when sorting, in board order
 function setUpBoard(words) {
   size = Math.ceil(Math.sqrt(words.length));
+  full = chain ? words.length : size;
   score = 0;
   mistakes = 0;
   const b = document.getElementById("board");
@@ -106,13 +114,13 @@ function setUpBoard(words) {
       e.preventDefault();
       showPopout(button);
     };
-    button.onclick = async function() {
-      if (button.category) return;
+    button.onclick = async function(e) {
+      if (button.category || e.target.className == 'size') return showPopout(button);
       if (selected == button) {
         deselect();
         return;
       }
-      button.style = "filter: invert(100%)";
+      button.style.filter = "invert(100%)";
       if (selected == 0) {
         selected = button;
         moved();
@@ -122,8 +130,8 @@ function setUpBoard(words) {
       selected = 0;
       const {valid, category, stale, link, swap} = await check(button, other);
       if (valid) {
-        other.style = "";
-        button.style = "";
+        other.style.filter = "";
+        button.style.filter = "";
         score += 1;
         const [keep, gone] = swap ? [other, button] : [button, other];
         keep.cluster = keep.cluster.concat(gone.cluster);
@@ -140,7 +148,7 @@ function setUpBoard(words) {
           x.classList.add('shake');
           x.addEventListener('animationend', () => {
             x.classList.remove('shake');
-            x.style = "";
+            x.style.filter = "";
           }, { once: true });
         }
       }

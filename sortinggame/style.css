@@ -1,49 +1,51 @@
-
-body {text-align: center; margin: 0; font-family: Georgia, serif; font-size: 18px;}
+:root {color-scheme: light dark; --bg: #fff; --fg: #000; --muted: #777; --line: #ccc; --border: #555; --hover: #eee; --panel: #fafafa;}
+@media (prefers-color-scheme: dark) {
+  :root {--bg: #181818; --fg: #e8e8e8; --muted: #999; --line: #444; --border: #888; --hover: #333; --panel: #222;}
+}
+body {background: var(--bg); color: var(--fg); text-align: center; margin: 0; font-family: Georgia, serif; font-size: 18px;}
 nav {width: 100%; box-sizing: border-box; background: #000; padding: 5px; color: #fff;}
 nav a {text-decoration: none; color: #fff;}
 nav a + a::before {content: "·"; padding: 0 18px;}
 nav + nav {top: unset;}
 p {text-align: left; padding: 0 30px; max-width: 1000px; margin: 1em auto;}
 form div {display: inline;}
-#instructions a {color: inherit; text-decoration: underline #000 dotted;}
+#instructions a {color: inherit; text-decoration: underline var(--fg) dotted;}
 h1 {font-size: 8vw; font-family: Cambria, Georgia, serif; margin: .3em 0 0 0;}
 h1 span {margin: 0 0.2em;}
-button {font-family: Georgia, serif; font-size: 18px; box-sizing: border-box; background: white; border: 1px solid #555; border-radius: 2px;}
-#board button {position: relative; line-height: 1.5em; max-height: 6em; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4;}
-button:hover {background: #eee;}
+button {font-family: Georgia, serif; font-size: 18px; box-sizing: border-box; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 2px;}
+#board button {position: relative; line-height: 1.5em; max-height: calc(var(--lines, 4) * 1.5em); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--lines, 4);}
+button:hover {background: var(--hover);}
 #board.start button {width: min(10em, (100vw - 2 * min(30px, 3vw) - (var(--n) - 1) * 2px) / var(--n)); height: 5em; overflow-wrap: anywhere;}
-.cluster {font-weight: bold; background: #888;}
-.cluster.size_2 {background: #eee;}
-.cluster.size_3 {background: #eee;}
-.cluster.size_4 {background: #ddd;}
-.cluster.size_5 {background: #ccc;}
-.cluster.size_6 {background: #bbb;}
-.cluster.size_7 {background: #aaa;}
-.cluster.size_8 {background: #999;}
-.cluster.size_9 {background: #909090;}
-.cluster .size {position: absolute; right: 0; bottom: 0; background: black; color: white; padding: 0 5px 5px 5px;}
+/* Clusters darken (lighten in dark mode) as they fill up: --fill is their share of a complete cluster */
+.cluster {font-weight: bold; background: color-mix(in srgb, var(--fg) calc(var(--fill) * 40%), var(--bg));}
+.cluster .size {position: absolute; right: 0; bottom: 0; background: var(--fg); color: var(--bg); padding: 0 8px 3px 8px; line-height: 1em;}
 
 .shake {animation: shake 0.5s; animation-iteration-count: 1;}
 
 
 #popout {position: fixed; inset: 0; background: #0006; display: flex; align-items: center; justify-content: center;}
 #popout[hidden] {display: none;}
-#popout div {background: #fff; padding: 1em 2em; border-radius: 4px; max-width: 80vw; max-height: 80vh; overflow-y: auto;}
+#popout div {background: var(--bg); padding: 1em 2em; border-radius: 4px; max-width: 80vw; max-height: 80vh; overflow-y: auto;}
 #popout div > * {display: block;}
 #popout b {margin-bottom: .5em;}
-#popout i {color: #777;}
+#popout i {color: var(--muted);}
+#popout table {display: table; margin: 0 auto 1em; border-collapse: collapse;}
+#popout td, #popout th {padding: 0 .5em;}
+#popout .self {background: var(--hover);}
+#popout .codebox {display: flex; gap: 5px; margin: .5em 0;}
+#popout .code {flex: auto; min-width: 0; font: inherit;}
+#popout button[form] {margin: 1em auto 0;}
 
-#buttons {display: inline-grid; grid-template-columns: auto auto; gap: .6em 1em; align-items: center; text-align: left; margin: 1.5em auto; padding: 1.2em 1.6em; border: 1px solid #ccc; border-radius: 6px; background: #fafafa;}
+#buttons {display: inline-grid; grid-template-columns: auto auto; gap: .6em 1em; align-items: center; text-align: left; margin: 1.5em auto; padding: 1.2em 1.6em; border: 1px solid var(--line); border-radius: 6px; background: var(--panel);}
 #buttons br {display: none;}
 #buttons label[for] {text-align: right;}
 #buttons label:not([for]), #buttons small {grid-column: 2;}
-#buttons small {margin-top: -.4em; color: #777;}
-#buttons select {font: inherit; padding: .2em .4em; border: 1px solid #555; border-radius: 2px; background: #fff;}
+#buttons small {margin-top: -.4em; color: var(--muted);}
+#buttons select {font: inherit; padding: .2em .4em; border: 1px solid var(--border); border-radius: 2px; background: var(--bg); color: var(--fg);}
 #types {overflow: hidden;}
-#types option:checked {background: #000 linear-gradient(#000, #000); color: #fff;}
-#buttons button[type=submit] {grid-column: 1 / -1; justify-self: center; padding: .3em 2em; background: #000; color: #fff;}
-#buttons button[type=submit]:hover {background: #333;}
+#types option:checked {background: var(--fg) linear-gradient(var(--fg), var(--fg)); color: var(--bg); -webkit-text-fill-color: var(--bg);}
+#buttons button[type=submit] {grid-column: 1 / -1; justify-self: center; padding: .3em 2em; background: var(--fg); color: var(--bg);}
+#buttons button[type=submit]:hover {background: var(--muted);}
 #board {padding: min(30px, 3vw); display: grid; gap: 2px; grid-auto-rows: 1fr;}
 #board.grid {display: inline-grid; grid-template-columns: repeat(var(--n), 1fr);}
 /* A game's grid fills the space below the navs, so small games fill the screen */
@@ -51,10 +53,11 @@ body:has(#board.grid:not(.start)) {display: flex; flex-direction: column; min-he
 #board.grid {flex-grow: 1; min-width: min-content;}
 #board.wrap {grid-template-columns: repeat(auto-fill, minmax(8em, 1fr)); justify-items: center;}
 #board.wrap button {width: 100%; max-width: 14em;}
-#board.tight {display: flex; flex-wrap: wrap; text-overflow: ellipsis; white-space: nowrap; max-width: 18em;}
-#board.tight button {white-space: nowrap;}
+#board.grid button, #board.wrap button {min-height: calc(min(2, var(--lines, 4)) * 1.5em + 4px);}
+#board.tight {display: flex; flex-wrap: wrap;}
+#board.tight button {display: block; white-space: nowrap; text-overflow: ellipsis; max-width: 18em;}
 .gone {visibility: hidden;}
-#board.tight .gone, .gone:not(:has(~ :not(.gone))) {display: none;}
+#board.tight .gone, #board .gone:not(:has(~ :not(.gone))) {display: none;}
 
 @keyframes shake {
   0%  {transform: translateX(1px)  rotate(0deg); }
