@@ -2,6 +2,7 @@ DROP TABLE IF EXISTS `player`;
 DROP TABLE IF EXISTS `game`;
 DROP TABLE IF EXISTS `membership`;
 DROP TABLE IF EXISTS `category`;
+DROP TABLE IF EXISTS `attempt`;
 
 CREATE TABLE `category` (
 	`id` int(10) NOT NULL AUTO_INCREMENT,
@@ -47,4 +48,13 @@ CREATE TABLE `player` (
 	`layout` varchar(8) NOT NULL DEFAULT 'grid',
 	`slots` json DEFAULT NULL, -- word indexes in display order, a slot whose word has a previous one is a hole; null for the initial 0..n²-1
 	PRIMARY KEY (`seed`, `user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `attempt` ( -- log of merges and mistakes, stale merges are left out
+	`seed` varchar(16) NOT NULL,
+	`user_id` bigint(20) NOT NULL,
+	`a` smallint(5) NOT NULL, -- board indexes of the two clusters' first words, as sent to receiver.php's merge
+	`b` smallint(5) NOT NULL,
+	`success` tinyint(1) NOT NULL,
+	`created_at` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

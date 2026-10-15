@@ -206,6 +206,7 @@ switch ($_POST['action'])
 			$mysql->execute_query("update game set board = ?, version = version + 1, finished_at = if(?, now(), null) where seed = ? and (multiplayer or created_by = ?)", [json_encode($board), (int)$finished, $seed, $user]);
 			$mysql->execute_query("update player set score = score + 1 where seed = ? and user_id = ?", [$seed, $user]);
 		}
+		if ($mistake or !$stale) $mysql->execute_query("insert into attempt (seed, user_id, a, b, success, created_at) values (?, ?, ?, ?, ?, now())", [$seed, $user, $a, $b, (int)!$mistake]);
 		$mysql->commit();
 		echo json_encode($answer);
 		break;
