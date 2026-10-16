@@ -217,6 +217,59 @@ switch ($_POST['action'])
 			if ($i < 10 or $row['user_id'] == $user) $top[] = ['rank' => $i + 1, 'name' => $row['display_name'], 'self' => $row['user_id'] == $user, 'score' => (int)$row['score'], 'mistakes' => (int)$row['mistakes']];
 		echo json_encode($top);
 		break;
+	// Feedback for the end screen from this player's mistakes, with the game's log replayed in order to know the clusters at each attempt.
+	// Sorting: both clusters count towards their categories, words still on their own also towards the word, and the pair when both are on their own.
+	// Chain: a cluster's two open ends count, towards the categories of their unmade links and the end words.
+	case 'stats':
+		$game = $mysql->execute_query("select mode, items, multiplayer from game where seed = ? and (multiplayer or created_by = ?)", [$seed, $user])->fetch_assoc();
+		$items = json_decode($game['items']);
+		$chain = $game['mode'] == 'chain';
+		$cats = array_fill_keys(array_column($items, 1), 0);
+		$pairs = $tried = $prev = [];
+		$single = array_fill(0, count($items), true);
+		$made = array_fill(0, count($items), false);
+		if ($chain) foreach ($items as $i => $w) $prev[$w[2]] = $i;
+		$head = function($i) use (&$made, $prev) { while ($made[$prev[$i]]) $i = $prev[$i]; return $i; };
+		$tail = function($i) use (&$made, $items) { while ($made[$i]) $i = $items[$i][2]; return $i; };
+		foreach ($mysql->execute_query("select user_id, a, b, success from attempt where seed = ? and (? or user_id = ?) order by id", [$seed, $game['multiplayer'], $user]) as $r)
+		{
+			[$a, $b] = [(int)$r['a'], (int)$r['b']];
+			if ($r['success'])
+			{
+				if ($chain) $made[$items[$tail($a)][2] != $head($b) ? $tail($b) : $tail($a)] = true;
+				$single[$a] = $single[$b] = false;
+			}
+			elseif ($r['user_id'] == $user)
+			{
+				foreach ([$a, $b] as $x)
+				{
+					if ($chain)
+					{
+						[$h, $t] = [$head($x), $tail($x)];
+						$cats[$items[$prev[$h]][1]]++;
+						$cats[$items[$t][1]]++;
+						foreach (array_unique([$h, $t]) as $e) $tried[$e] = ($tried[$e] ?? 0) + 1;
+					}
+					else
+					{
+						$cats[$items[$x][1]]++;
+						if ($single[$x]) $tried[$x] = ($tried[$x] ?? 0) + 1;
+					}
+				}
+				if (!$chain and $single[$a] and $single[$b]) $pairs[min($a, $b) . ',' . max($a, $b)] = ($pairs[min($a, $b) . ',' . max($a, $b)] ?? 0) + 1;
+			}
+		}
+		// Up to three each: pairs tried 3+ times, categories with mistakes, the categories with the fewest unless 3+ have none, words tried n/2+ times on an n×n board
+		$top = fn($counts, $min) => array_slice(array_filter($counts, fn($n) => $n >= $min), 0, 3, true);
+		$entries = fn($counts) => array_map(null, array_keys($counts), $counts);
+		arsort($pairs);
+		arsort($tried);
+		arsort($cats);
+		$worst = $top($cats, 1);
+		asort($cats);
+		$best = count(array_keys($cats, 0)) < 3 ? array_slice(array_diff_key($cats, $worst), 0, 3, true) : [];
+		echo json_encode(['pairs' => $entries($top($pairs, 3)), 'worst' => $entries($worst), 'best' => $entries($best), 'tried' => $entries($top($tried, sqrt(count($items)) / 2))]);
+		break;
 	case 'layout':
 		$mysql->execute_query("update player set layout = ? where seed = ? and user_id = ?", [$_POST['layout'], $seed, $user]);
 		break;

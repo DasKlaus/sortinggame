@@ -35,6 +35,7 @@ button:hover {background: var(--hover);}
 #popout .codebox {display: flex; gap: 5px; margin: .5em 0;}
 #popout .code {flex: auto; min-width: 0; font: inherit;}
 #popout button[form] {margin: 1em auto 0;}
+#popout ul {text-align: left; margin: 1em 0 0; padding-left: 1.2em;}
 
 #buttons {display: inline-grid; grid-template-columns: auto auto; gap: .6em 1em; align-items: center; text-align: left; margin: 1.5em auto; padding: 1.2em 1.6em; border: 1px solid var(--line); border-radius: 6px; background: var(--panel);}
 #buttons br {display: none;}

@@ -5,6 +5,7 @@
 // Globals in board.js, state is set by game.php
 let trophy;  // The button reopening the end screen, once the game is finished
 let highscores;  // Fetched once, when the end screen first opens
+let stats;  // Feedback on this player's mistakes, fetched with the highscores
 
 
 
@@ -53,14 +54,21 @@ function end(show) {
 //The end screen: the ten best players of this seed by combinations minus mistakes, and this player below them if further down
 async function showEnd() {
   highscores ??= await (await send({action: 'highscores'})).json();
+  stats ??= await (await send({action: 'stats'})).json();
   const esc = s => s.replace(/[&<>"]/g, c => '&#' + c.charCodeAt(0) + ';');
+  const word = i => '“' + esc(state.words[i]) + '”';
+  const line = (label, entries, show) => entries.length ? `<li>${label}: ${entries.map(show).join(', ')}</li>` : '';
+  const feedback = line('Wrong pairs tried most', stats.pairs, ([p, n]) => p.split(',').map(word).join(' and ') + ` (${n} times)`) +
+    line('Most mistakes', stats.worst, ([c, n]) => `${esc(c)} (${n})`) +
+    line('Fewest mistakes', stats.best, ([c, n]) => `${esc(c)} (${n})`) +
+    line('Words tried most', stats.tried, ([i, n]) => `${word(i)} (${n} times)`);
   const link = location.origin + location.pathname + '?go=game&seed=' + state.seed;
   openPopout('<b>Congratulations!</b><table><tr><th>#</th><th>Name</th><th>Score</th><th>Combinations</th><th>Mistakes</th></tr>' +
     highscores.map(p => `<tr${p.self ? ' class="self"' : ''}><td>${p.rank}</td><td>${esc(p.name || 'Anonymous')}</td><td>${p.score - p.mistakes}</td><td>${p.score}</td><td>${p.mistakes}</td></tr>`).join('') +
     `</table><span>Your final score is ${score - mistakes} (${score} combinations, ${mistakes} mistakes).${state.multiplayer ? '' : ' Share this link'}</span>` +
     (state.multiplayer ? '' : `<span class="codebox"><input class="code" value="${link}" readonly><button type="button" class="copy" title="Copy link" onclick="event.stopPropagation(); this.previousElementSibling.select(); navigator.clipboard.writeText(this.previousElementSibling.value);">⧉</button></span>` +
       '<span>to invite others to compete against this score.</span>') +
-    '<button form="again">Start another game with the same settings</button>');
+    '<button form="again">Start another game with the same settings</button>' + (feedback && `<ul>${feedback}</ul>`));
 }
 
 
