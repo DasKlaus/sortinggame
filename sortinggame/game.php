@@ -10,7 +10,7 @@ if (isset($_GET["seed"])) {
 	identify();
 	// Every player of a single-player board gets their own game of it, with a fresh board
 	if (!$multiplayer) $mysql->execute_query("insert ignore into game (seed, language, mode, types, size, items, board, created_by, created_at) select seed, language, mode, types, size, items, ?, ?, now() from game where seed = ? limit 1", [json_encode($mode == 'chain' ? array_fill(0, $size, false) : array_fill(0, $size * $size, -1)), $_SESSION['user_id'], $seed]);
-	$mysql->execute_query("insert ignore into player (seed, user_id, display_name) values (?, ?, ?)", [$seed, $_SESSION['user_id'], $_SESSION['display_name']]);
+	$mysql->execute_query("insert ignore into player (seed, user_id, display_name, layout) values (?, ?, ?, ?)", [$seed, $_SESSION['user_id'], $_SESSION['display_name'], $size >= 10 ? 'wrap' : 'grid']);
 	$state = $mysql->execute_query("select g.seed, g.mode, g.items, g.board, g.multiplayer, p.score, p.mistakes, p.layout, p.slots from game g join player p on p.seed = g.seed and p.user_id = ? where g.seed = ? and (g.multiplayer or g.created_by = ?)", [$_SESSION['user_id'], $seed, $_SESSION['user_id']])->fetch_assoc();
 	$items = json_decode($state['items']);
 	unset($state['items']);
@@ -40,7 +40,7 @@ if (isset($_GET["seed"])) {
 	}
 ?>
 <nav>
-	<button type="button" onclick="openPopout(this.title)" title="<?php echo $mode == 'chain' ? 'Link the words two at a time into one closed chain.' : 'Combine items two at a time into categories.' ?>">?</button> Combinations:&nbsp;<span id="score"><?php echo $state['score'] ?></span> Mistakes:&nbsp;<span id="mistakes"><?php echo $state['mistakes'] ?></span>
+	<button type="button" onclick="openPopout(this.title + '<p>Layout (dropdown in the top bar): <b>Grid</b> shows the board as a square, which gets tiny on small screens. <b>Wrap</b> fills the screen width and scrolls down, best on phones. <b>Tight</b> packs the words in one line each, as narrow as possible. &quot;N lines&quot; limits how many lines of a long word are shown, &quot;Reflow&quot; fills gaps when items merge, and &quot;Order&quot; moves the biggest clusters to the front.</p>')" title="<?php echo $mode == 'chain' ? 'Link the words two at a time into one closed chain.' : 'Combine items two at a time into categories.' ?>">?</button> Combinations:&nbsp;<span id="score"><?php echo $state['score'] ?></span> Mistakes:&nbsp;<span id="mistakes"><?php echo $state['mistakes'] ?></span>
 <?php if ($multiplayer) { ?>
 	Others (combinations/mistakes):&nbsp;<span id="players"></span>
 <?php } ?>

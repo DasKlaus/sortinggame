@@ -13,12 +13,18 @@ form div {display: inline;}
 h1 {font-size: 8vw; font-family: Cambria, Georgia, serif; margin: .3em 0 0 0;}
 h1 span {margin: 0 0.2em;}
 button {font-family: Georgia, serif; font-size: 18px; box-sizing: border-box; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 2px;}
-#board button {position: relative; line-height: 1.5em; max-height: calc(var(--lines, 4) * 1.5em); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--lines, 4);}
+#board button {overflow-wrap: anywhere; position: relative; line-height: 1.5em; max-height: calc(var(--lines, 4) * 1.5em); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--lines, 4);}
 button:hover {background: var(--hover);}
 #board.start button {width: min(10em, (100vw - 2 * min(30px, 3vw) - (var(--n) - 1) * 2px) / var(--n)); height: 5em; overflow-wrap: anywhere;}
 /* Clusters darken (lighten in dark mode) as they fill up: --fill is their share of a complete cluster */
-.cluster {font-weight: bold; background: color-mix(in srgb, var(--fg) calc(var(--fill) * 40%), var(--bg));}
-.cluster .size {position: absolute; right: 0; bottom: 0; background: var(--fg); color: var(--bg); padding: 0 8px 3px 8px; line-height: 1em;}
+.cluster, .achievements .unseen {font-weight: bold; background: color-mix(in srgb, var(--fg) calc(var(--fill) * 40%), var(--bg));}
+.cluster .size, .achievements [class^=level] {position: absolute; right: 0; bottom: 0; background: var(--fg); color: var(--bg); padding: 0 8px 3px 8px; line-height: 1em;}
+/* Achievements on the profile look like the board's buttons in wrap mode with 10 lines, unseen ones like a half complete cluster */
+.achievements {list-style: none; max-width: 1000px; margin: 1em auto; padding: min(30px, 3vw); display: grid; gap: 2px; grid-auto-rows: 1fr; grid-template-columns: repeat(auto-fill, minmax(8em, 1fr)); justify-items: center;}
+.achievements li {width: 100%; max-width: 14em; box-sizing: border-box; padding: 1px 6px; border: 1px solid var(--border); border-radius: 2px; overflow-wrap: anywhere; position: relative; line-height: 1.5em; min-height: calc(3em + 4px); display: flex; align-items: center; justify-content: center;}
+.achievements li > :last-child {overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 10;}
+.achievements .unseen {--fill: .5;}
+.achievements img {position: absolute; left: 0; bottom: 0; height: 1em; padding: 0 4px 3px 4px;}
 
 .shake {animation: shake 0.5s; animation-iteration-count: 1;}
 

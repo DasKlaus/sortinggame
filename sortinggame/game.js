@@ -6,6 +6,7 @@
 let trophy;  // The button reopening the end screen, once the game is finished
 let highscores;  // Fetched once, when the end screen first opens
 let stats;  // Feedback on this player's mistakes, fetched with the highscores
+let achievements = [];  // Achievements this player earned with the merge that finished the game, until they are on the board
 
 
 
@@ -37,16 +38,23 @@ function reflow() {
 }
 
 
-//Once every word is in a finished category, a trophy button takes the first hole, or goes after the categories, and opens the end screen
-function end(show) {
-  if (trophy || !buttons.every(b => b.disabled || b.category)) return;
-  trophy = document.createElement('button');
-  trophy.textContent = '🏆';
-  trophy.cluster = ['🏆'];
-  trophy.onclick = showEnd;
+//A trophy button takes the first hole, or goes after the categories
+function award(onclick) {
+  const b = document.createElement('button');
+  b.textContent = '🏆';
+  b.cluster = ['🏆'];
+  b.onclick = onclick;
   const board = document.getElementById('board');
   const gap = board.querySelector('.gone');
-  gap ? gap.replaceWith(trophy) : board.append(trophy);
+  gap ? gap.replaceWith(b) : board.append(b);
+  return b;
+}
+
+
+//Once every word is in a finished category, a trophy opens the end screen
+function end(show) {
+  if (trophy || !buttons.every(b => b.disabled || b.category)) return;
+  trophy = award(showEnd);
   if (show) showEnd();
 }
 
@@ -86,6 +94,7 @@ function order() {
 async function check(a, b) {
   const answer = await (await send({action: 'merge', a: a.index, b: b.index})).json();
   version = -1;
+  if (answer.achievements) achievements = answer.achievements;
   return answer;
 }
 
@@ -131,6 +140,11 @@ function moved() {
   document.getElementById("mistakes").textContent = mistakes;
   if (document.getElementById('reflow').checked) reflow();
   end(true);
+  //After the end screen's trophy, each new achievement gets one, which marks it seen when opened
+  achievements.splice(0).forEach(a => award(() => {
+    openPopout(`<b>Congratulations!</b>You've earned a new achievement!<br>${a.description}`);
+    send({do: 'confirmachievements', [`seen[${a.badge}]`]: a.level});
+  }));
 }
 
 

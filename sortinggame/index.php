@@ -23,7 +23,7 @@ $go = $_GET['go'] ?? 'start';
 	<link rel="icon" href="favicon.svg">
 </head>
 <body>
-<nav><a href="?go=profile">Profile: Klaus</a><a href="?go=game">Play</a><a href="?go=instructions">Instructions</a><a href="?go=impressum">Site notice</a></nav>
+<nav><a href="?go=profile">Profile<?php if ($_SESSION['user_id']) echo ': '.htmlspecialchars($_SESSION['display_name'] ?: 'Guest', ENT_QUOTES, 'UTF-8'); ?></a><a href="?go=game">Play</a><a href="?go=instructions">Instructions</a><a href="?go=impressum">Site notice</a></nav>
 
 <?php
 identityMessage('en');
@@ -31,6 +31,8 @@ if ($go == 'game') include 'game.php';
 elseif ($go == 'profile') {
 	echo '<h2>Profile</h2>';
 	identityForm('en');
+	showAchievements('en', 'sortinggame');
+	confirmAllAchievements();
 }
 elseif ($go == 'instructions') echo '<h2>to be done</h2>';
 elseif ($go == 'impressum') {

@@ -157,7 +157,7 @@ switch ($_POST['action'])
 	// A merge is stale when another player has merged a or b already; a mismatch is a mistake even then.
 	case 'merge':
 		$mysql->begin_transaction();
-		$game = $mysql->execute_query("select mode, board, items from game where seed = ? and (multiplayer or created_by = ?) for update", [$seed, $user])->fetch_assoc();
+		$game = $mysql->execute_query("select mode, board, items, language, size, multiplayer from game where seed = ? and (multiplayer or created_by = ?) for update", [$seed, $user])->fetch_assoc();
 		$board = json_decode($game['board']);
 		$items = json_decode($game['items']);
 		$a = (int)$_POST['a'];
@@ -208,6 +208,29 @@ switch ($_POST['action'])
 		}
 		if ($mistake or !$stale) $mysql->execute_query("insert into attempt (seed, user_id, a, b, success, created_at) values (?, ?, ?, ?, ?, now())", [$seed, $user, $a, $b, (int)!$mistake]);
 		$mysql->commit();
+		// Achievements of a finished sorting game: par and distinct categories for a player who finished it alone, i.e. their single-player game
+		// or a multiplayer game nobody else scored in; beating player 1 for everyone, on score - mistakes in multiplayer, on fewer mistakes
+		// with both finished on a single-player seed, checked by whichever of the two finishes later
+		if (($finished ?? false) and $game['mode'] == 'sorting')
+		{
+			$solo = "g.finished_at is not null and (not g.multiplayer and g.created_by = p.user_id or g.multiplayer and p.user_id = all (select o.user_id from player o where o.seed = g.seed and o.score > 0))";
+			if ($user and $game['size'] >= 10 and ($mistakes = $mysql->execute_query("select p.mistakes from game g join player p on p.seed = g.seed and p.user_id = ? where g.seed = ? and $solo", [$user, $seed])->fetch_column()) !== false)
+			{
+				achieve($user, 'sg_par_' . $game['size'], $mistakes, true);
+				$names = [];
+				foreach ($mysql->execute_query("select g.items from game g join player p on p.seed = g.seed and p.user_id = ? where g.mode = 'sorting' and g.size >= 10 and g.language = ? and $solo", [$user, $game['language']]) as $row)
+					foreach (json_decode($row['items']) as [, $c]) $names[$c] = true;
+				achieve($user, 'sg_categories_' . $game['language'], count($names));
+			}
+			if ($game['multiplayer'])
+				$winners = $mysql->execute_query("select p.user_id from player p join player k on k.seed = p.seed and k.user_id = 1
+					where p.seed = ? and p.user_id not in (0, 1) and p.score - p.mistakes > k.score - k.mistakes", [$seed])->fetch_all();
+			elseif ($user)
+				$winners = $mysql->execute_query("select p.user_id from player p join game g on g.seed = p.seed and g.created_by = p.user_id
+					join player k on k.seed = p.seed and k.user_id = 1 join game kg on kg.seed = p.seed and kg.created_by = 1
+					where p.seed = ? and p.user_id not in (0, 1) and ? in (1, p.user_id) and g.finished_at is not null and kg.finished_at is not null and p.mistakes < k.mistakes", [$seed, $user])->fetch_all();
+			foreach ($winners ?? [] as [$winner]) achieve($winner, 'sg_klaus', 1);
+		}
 		echo json_encode($answer);
 		break;
 	// The ten best players of the seed by combinations minus mistakes, finished or not, and this player below them if further down
@@ -276,4 +299,16 @@ switch ($_POST['action'])
 	case 'slots':
 		$mysql->execute_query("update player set slots = ? where seed = ? and user_id = ?", [$_POST['slots'], $seed, $user]);
 		break;
+}
+
+// grants the level $n reaches on $key's thresholds, at or below them if $invert; a level raised for this session's player goes into the merge's answer
+function achieve($user, $key, $n, $invert = false)
+{
+	global $answer;
+	static $catalogue = require "../achievements.php";
+	$level = 0;
+	foreach ($catalogue['sortinggame']['badges'][$key]['levels'] as $threshold)
+		if ($invert ? $n <= $threshold : $n >= $threshold) $level++;
+	if ($level and grantAchievement($user, $key, $level) and $user == $_SESSION['user_id'])
+		$answer['achievements'][] = ['badge' => $key, 'level' => $level, 'description' => achievementText($catalogue['sortinggame']['badges'][$key], 'en', $level)];
 }
