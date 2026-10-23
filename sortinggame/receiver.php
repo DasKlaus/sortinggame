@@ -57,54 +57,82 @@ switch ($_POST['action'])
 		if ($_POST['mode'] == 'chain')
 		{
 			// Randomized depth-first search for a cycle of size words, each linked to the next by a playable category of the selected types, no two with the same parent.
-			// Every category, from all memberships, that holds two board words holds just the two of a link.
-			// A search gives up after 1000 steps and restarts at another word; after 20 restarts the chain gets one word shorter.
-			$name = $group = $of = $link = [];
-			foreach ($mysql->execute_query("select c.id, c.name, c.type, c.parent_id, c.playable, m.item, m.obscure from membership m join category c on c.id = m.category_id where c.language = ?", [$_POST['language']]) as $r)
+			// Only non-obscure memberships count. A category that holds two board words holds just the two of a link; categories of 100 items or more are too general to matter, unless they are a link.
+			// The cycle starts with a pair category's two words. Small categories (under 5 items) are mostly tried first, and for a big link, half the time the words that are in a small category.
+			// A search gives up after 2000 steps and restarts at another pair: the first 20 searches need 60% small links, the next 20 half, after 60 the chain gets one word shorter.
+			$name = $group = $of = $link = $count = $smallWord = [];
+			foreach ($mysql->execute_query("select c.id, c.name, c.type, c.parent_id, c.playable, m.item from membership m join category c on c.id = m.category_id where c.language = ? and not m.obscure", [$_POST['language']]) as $r)
 			{
 				$name[$r['id']] = $r['name'];
 				$group[$r['id']] = $r['parent_id'] ?? 'c' . $r['id']; // categories without a parent are a group of their own
-				$of[$r['item']][$r['id']] = $r['obscure'];
-				if ($r['playable'] and in_array($r['type'], $_POST['types']) and !$r['obscure']) $link[$r['id']][] = $r['item'];
+				$of[$r['item']][$r['id']] = true;
+				$count[$r['id']] = ($count[$r['id']] ?? 0) + 1;
+				if ($r['playable'] and in_array($r['type'], $_POST['types'])) $link[$r['id']][] = $r['item'];
 			}
-			$starts = array_keys(array_filter($of, fn($cs) => count(array_filter($cs, fn($obscure, $c) => !$obscure && isset($link[$c]), ARRAY_FILTER_USE_BOTH)) >= 2));
-			$search = function() use (&$search, &$path, &$on, &$in, &$taken, &$picked, &$steps, &$n, $of, $link, $group)
+			$small = array_map(fn($k) => $k < 5, $count);
+			foreach ($link as $c => $ws) if ($small[$c]) foreach ($ws as $w) $smallWord[$w] = true;
+			// No word comes back with the category name of one of its links on the last 14 chain boards
+			$blocked = [];
+			foreach ($mysql->execute_query("select max(items) items from game where mode = 'chain' and language = ? group by seed order by min(created_at) desc limit 14", [$_POST['language']]) as $r)
 			{
-				if (++$steps > 1000) return false;
+				$prev = json_decode($r['items']);
+				foreach ($prev as [$w, $cn, $next]) $blocked[$cn][$w] = $blocked[$cn][$prev[$next][0]] = true;
+			}
+			$pairs = array_keys(array_filter($link, fn($ws, $c) => count($ws) == 2 && !isset($blocked[$name[$c]][$ws[0]]) && !isset($blocked[$name[$c]][$ws[1]]), ARRAY_FILTER_USE_BOTH));
+			$search = function() use (&$search, &$path, &$on, &$in, &$taken, &$picked, &$steps, &$n, &$big, &$maxBig, &$close, $of, $link, $group, $count, $small, $smallWord, $name, $blocked)
+			{
+				if (++$steps > 2000) return false;
 				$x = end($path);
-				$moves = [];
-				foreach ($of[$x] as $c => $obscure) if (!$obscure && isset($link[$c]) && !isset($taken[$group[$c]])) foreach ($link[$c] as $y) if (!isset($on[$y])) $moves[] = [$c, $y];
-				shuffle($moves);
-				foreach ($moves as [$c, $y])
+				$last = count($path) == $n - 1;
+				$order = [];
+				foreach ($of[$x] as $c => $_) if (isset($link[$c]) && !isset($taken[$group[$c]]) && !isset($blocked[$name[$c]][$x]) && ($small[$c] || $big < $maxBig)) $order[$c] = mt_rand() * ($small[$c] ? 12 : 1);
+				arsort($order);
+				foreach ($order as $c => $_)
 				{
-					// y may share a category with x, or with the first word when it is the last one, but with no other board word
-					foreach ($of[$y] as $d => $_) if (!empty($in[$d]) && $in[$d] !== [$x] && !(count($path) == $n - 1 && $in[$d] === [$path[0]])) continue 2;
-					$taken[$group[$c]] = true;
-					$path[] = $y;
-					$on[$y] = true;
-					$picked[] = $c;
-					foreach ($of[$y] as $d => $_) $in[$d][] = $y;
-					if (count($path) < $n)
+					$ys = $link[$c];
+					shuffle($ys);
+					if (!$small[$c] && mt_rand(0, 1)) $ys = [...array_filter($ys, fn($y) => isset($smallWord[$y])), ...array_filter($ys, fn($y) => !isset($smallWord[$y]))];
+					foreach ($ys as $y)
 					{
-						if ($search()) return true;
+						// The last word needs a link back to the first one
+						if (isset($on[$y]) || isset($blocked[$name[$c]][$y]) || $last && !isset($close[$y])) continue;
+						// y may share a category with x, or with the first word when it is the last one, but with no other board word; a big link category holds no other board word at all
+						foreach ($of[$y] as $d => $_) if (!empty($in[$d]) && $in[$d] !== [$x] && !($last && $in[$d] === [$path[0]])) continue 2;
+						if ($count[$c] >= 100) foreach ($path as $p) if ($p !== $x && isset($of[$p][$c])) continue 2;
+						$taken[$group[$c]] = true;
+						$path[] = $y;
+						$on[$y] = true;
+						$picked[] = $c;
+						$big += !$small[$c];
+						if ($count[$c] >= 100) $in[$c] = [$x];
+						foreach ($of[$y] as $d => $_) if ($count[$d] < 100 || isset($in[$d])) $in[$d][] = $y;
+						if (!$last)
+						{
+							if ($search()) return true;
+						}
+						else foreach ($of[$y] as $d => $_) if (isset($link[$d]) && !isset($taken[$group[$d]]) && ($small[$d] || $big < $maxBig) && isset($of[$path[0]][$d]) && !isset($blocked[$name[$d]][$y]) && !isset($blocked[$name[$d]][$path[0]]))
+						{
+							if ($count[$d] >= 100) foreach ($path as $p) if ($p !== $y && $p !== $path[0] && isset($of[$p][$d])) continue 2;
+							$picked[] = $d;
+							return true;
+						}
+						foreach ($of[$y] as $d => $_) if ($count[$d] < 100 || isset($in[$d])) array_pop($in[$d]);
+						if ($count[$c] >= 100) unset($in[$c]);
+						$big -= !$small[$c];
+						unset($taken[$group[$c]], $on[$y]);
+						array_pop($path);
+						array_pop($picked);
 					}
-					else foreach ($of[$y] as $d => $obscure) if (!$obscure && isset($link[$d]) && !isset($taken[$group[$d]]) && isset($of[$path[0]][$d]) && !$of[$path[0]][$d])
-					{
-						$picked[] = $d;
-						return true;
-					}
-					unset($taken[$group[$c]], $on[$y]);
-					array_pop($path);
-					array_pop($picked);
-					foreach ($of[$y] as $d => $_) array_pop($in[$d]);
 				}
 				return false;
 			};
-			for ($n = $size; ; $n--) for ($try = 0; $try < 20; $try++)
+			for ($n = $size; ; $n--) for ($try = 0; $try < 60; $try++)
 			{
-				$x = (string)$starts[array_rand($starts)];
-				[$path, $on, $in, $taken, $picked, $steps] = [[$x], [$x => true], [], [], [], 0];
-				foreach ($of[$x] as $d => $_) $in[$d] = [$x];
+				$maxBig = [intdiv(2 * $n, 5), intdiv($n, 2), $n][intdiv($try, 20)];
+				$c = $pairs[array_rand($pairs)];
+				[$path, $on, $in, $taken, $picked, $steps, $big, $close] = [$link[$c], array_fill_keys($link[$c], true), [], [$group[$c] => true], [$c], 0, 0, []];
+				foreach ($path as $p) foreach ($of[$p] as $d => $_) if ($count[$d] < 100) $in[$d][] = $p;
+				foreach ($of[$path[0]] as $d => $_) if (isset($link[$d])) foreach ($link[$d] as $y) $close[$y] = true;
 				if ($search()) break 2;
 			}
 			// Words go on the board in random order, each with its link's category and the board index of the next word in the cycle
