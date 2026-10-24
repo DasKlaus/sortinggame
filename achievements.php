@@ -34,6 +34,16 @@ return [
 			'de' => 'Ein 25×25-Spiel mit höchstens %s Fehlern beendet',
 			'en' => 'Finished a 25×25 game with at most %s mistakes',
 		],
+		'sg_streak' => [
+			'levels' => [3, 5, 7],
+			'de' => 'Kette des Tages an %s Tagen in Folge gespielt',
+			'en' => 'Chain of the day played %s days in a row',
+		],
+		'sg_flawless' => [
+			'levels' => [9, 16, 25],
+			'de' => 'Die %s-Begriffe-Kette des Tages ohne Fehler beendet',
+			'en' => 'Finished the %s-item chain of the day without mistakes',
+		],
 		'sg_klaus' => [
 			'levels' => [1],
 			'de' => 'Klaus in einem Spiel geschlagen',

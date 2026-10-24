@@ -71,12 +71,17 @@ async function showEnd() {
     line('Fewest mistakes', stats.best, ([c, n]) => `${esc(c)} (${n})`) +
     line('Words tried most', stats.tried, ([i, n]) => `${word(i)} (${n} times)`);
   const link = location.origin + location.pathname + '?go=game&seed=' + state.seed;
+  // A daily shares plain text instead: the address carrying no result, a mark per attempt on weekdays, per mistake on weekends, and the streak
+  const d = state.daily, n = state.words.length;
+  const share = d && `${location.origin + location.pathname}?go=daily&lang=${d.language} #${d.number} ${d.language.toUpperCase()}\n⛓️ ${n} items · ` +
+    (n > 9 ? '💥'.repeat(mistakes) || '✨' : stats.log.map(s => s ? '🔗' : '💥').join('')) + (stats.streak >= 2 ? `\n🔥 ${stats.streak} days in a row` : '');
   openPopout('<b>Congratulations!</b><table><tr><th>#</th><th>Name</th><th>Score</th><th>Combinations</th><th>Mistakes</th></tr>' +
     highscores.map(p => `<tr${p.self ? ' class="self"' : ''}><td>${p.rank}</td><td>${esc(p.name || 'Anonymous')}</td><td>${p.score - p.mistakes}</td><td>${p.score}</td><td>${p.mistakes}</td></tr>`).join('') +
-    `</table><span>Your final score is ${score - mistakes} (${score} combinations, ${mistakes} mistakes).${state.multiplayer ? '' : ' Share this link'}</span>` +
-    (state.multiplayer ? '' : `<span class="codebox"><input class="code" value="${link}" readonly><button type="button" class="copy" title="Copy link" onclick="event.stopPropagation(); this.previousElementSibling.select(); navigator.clipboard.writeText(this.previousElementSibling.value);">⧉</button></span>` +
+    `</table><span>Your final score is ${score - mistakes} (${score} combinations, ${mistakes} mistakes).${state.multiplayer || d ? '' : ' Share this link'}</span>` +
+    (d ? `<span class="codebox"><span class="share">${esc(share)}</span><button type="button" class="copy" title="Copy" onclick="event.stopPropagation(); getSelection().selectAllChildren(this.previousElementSibling); navigator.clipboard.writeText(this.previousElementSibling.textContent);">⧉</button></span>` :
+      state.multiplayer ? '' : `<span class="codebox"><input class="code" value="${link}" readonly><button type="button" class="copy" title="Copy link" onclick="event.stopPropagation(); this.previousElementSibling.select(); navigator.clipboard.writeText(this.previousElementSibling.value);">⧉</button></span>` +
       '<span>to invite others to compete against this score.</span>') +
-    '<button form="again">Start another game with the same settings</button>' + (feedback && `<ul>${feedback}</ul>`));
+    (d ? '' : '<button form="again">Start another game with the same settings</button>') + (feedback && `<ul>${feedback}</ul>`));
 }
 
 

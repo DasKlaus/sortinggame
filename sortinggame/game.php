@@ -18,6 +18,8 @@ if (isset($_GET["seed"])) {
 	$state['board'] = json_decode($state['board']);
 	$state['slots'] = json_decode($state['slots'] ?? 'null');
 	$state['done'] = (object)[];
+	// A daily's number counts from the first daily, which is number 1
+	if (preg_match('/^\d{4}-\d\d-\d\d-/', $seed)) $state['daily'] = ['language' => $language, 'number' => 1 + round((strtotime(substr($seed, 0, 10)) - strtotime('2026-10-24')) / 86400)];
 	if ($mode == 'chain')
 	{
 		// The client gets each word's previous one in its cluster and the link's category; a finished chain is done with the category that closes the cycle
@@ -76,6 +78,7 @@ if (isset($_GET["seed"])) {
 <?php
 }
 else {
+	echo '<div id="daily">Play today\'s chain link game: <button type="button" onclick="location = \'?go=daily&lang=de\'">de</button> <button type="button" onclick="location = \'?go=daily&lang=en\'">en</button></div>';
 	if (isset($_GET['guest']) and !$_SESSION['user_id']) {
 		echo '<p>Pick a name to start a multiplayer game, or leave the field empty to play anonymously. If you have an authentication code, you can sign in with it.</p>';
 		identityForm('en');
@@ -83,7 +86,7 @@ else {
 ?>
 <form id="buttons" method="post" action="receiver.php">
 	<input type="hidden" name="action" value="create">
-	<label for="size">Size: </label><select id="size" name="size"><option value="5">5x5</option><option value="10">10x10</option><option value="15">15x15</option><option value="20">20x20</option><option value="25">25x25</option></select><select id="words" name="size" hidden disabled><?php foreach ([16, 25, 36, 49, 64, 81, 100] as $n) echo "<option value=\"$n\">$n words</option>"; ?></select>
+	<label for="size">Size: </label><select id="size" name="size"><option value="5">5x5</option><option value="10">10x10</option><option value="15">15x15</option><option value="20">20x20</option><option value="25">25x25</option></select><select id="words" name="size" hidden disabled><option value="25">25 words</option></select>
 	<label for="lang">Language: </label><select id="lang" name="language"><option value="en">en</option><option value="de">de</option></select>
 	<label for="mode">Mode: </label><select id="mode" name="mode"><option value="sorting">Sorting</option><option value="chain">Chain</option></select>
 	<label><input type="checkbox" name="multiplayer" value="1">Multiplayer</label>

@@ -42,6 +42,11 @@ button:hover {background: var(--hover);}
 #popout .code {flex: auto; min-width: 0; font: inherit;}
 #popout button[form] {margin: 1em auto 0;}
 #popout ul {text-align: left; margin: 1em 0 0; padding-left: 1.2em;}
+#popout .share {flex: auto; white-space: pre-line; text-align: left; overflow-wrap: anywhere; padding: .3em .5em; border: 1px solid var(--border);}
+
+#daily {font-size: 1.6em; margin: 1em 16px 0;}
+#daily button {font-size: inherit; padding: .1em .8em; background: var(--fg); color: var(--bg);}
+#daily button:hover {background: var(--muted);}
 
 #buttons {display: inline-grid; grid-template-columns: auto auto; gap: .6em 1em; align-items: center; text-align: left; margin: 1.5em auto; padding: 1.2em 1.6em; border: 1px solid var(--line); border-radius: 6px; background: var(--panel);}
 #buttons br {display: none;}

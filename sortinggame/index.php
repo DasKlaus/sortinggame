@@ -5,6 +5,17 @@ require_once("../identity.php");
 if (($_POST['do'] ?? '') == 'renameall') $mysql->execute_query("update player set display_name = ? where user_id = ?", [$_SESSION['display_name'], $_SESSION['user_id']]);
 
 $go = $_GET['go'] ?? 'start';
+// Today's daily in a language, created by receiver.php if nobody has played it yet
+if ($go == 'daily')
+{
+	$_GET['seed'] = date('Y-m-d') . '-' . $_GET['lang'];
+	if (!$mysql->execute_query("select 1 from game where seed = ? limit 1", [$_GET['seed']])->fetch_row())
+	{
+		header("Location: receiver.php?daily=$_GET[lang]");
+		exit;
+	}
+	$go = 'game';
+}
 ?>
 <!DOCTYPE html>
 <html>

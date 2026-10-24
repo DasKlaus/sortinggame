@@ -3,9 +3,23 @@ require_once("config.php");
 require_once("../identity.php");
 
 $user = $_SESSION['user_id'];
+$daily = '/^\d{4}-\d\d-\d\d-/'; // a daily's seed is its date and language, e.g. 2026-10-24-de
 
+// Today's daily in a language is created by its first player, under a lock so two first players can't create two:
+// a chain of all category types, 9 items on weekdays, 16 on Saturdays, 25 on Sundays
+if (isset($_GET['daily']))
+{
+	$mysql->query("select get_lock('daily', 10)");
+	if ($mysql->execute_query("select 1 from game where seed = ? limit 1", [date('Y-m-d') . '-' . $_GET['daily']])->fetch_row())
+	{
+		header("Location: ./?go=daily&lang=$_GET[daily]");
+		exit;
+	}
+	$_POST = ['action' => 'create', 'seed' => date('Y-m-d') . '-' . $_GET['daily'], 'language' => $_GET['daily'], 'mode' => 'chain', 'size' => [25, 9, 9, 9, 9, 9, 16][date('w')],
+		'types' => array_column($mysql->query("select distinct type from category")->fetch_all(), 0)];
+}
 // Polls of a multiplayer game: the board and the other players, unless nothing changed since the client's version
-if ($_SERVER['REQUEST_METHOD'] == 'GET')
+elseif ($_SERVER['REQUEST_METHOD'] == 'GET')
 {
 	session_write_close(); // a held session would block this player's merges until the poll is answered
 	$game = $mysql->execute_query("select mode, board, items, version, finished_at from game where seed = ? and multiplayer", [$_GET['seed']])->fetch_assoc();
@@ -177,7 +191,7 @@ switch ($_POST['action'])
 			$board = array_fill(0, $n * $n, -1);
 		}
 		$mysql->execute_query("insert into game (seed, language, mode, types, size, items, board, multiplayer, created_by, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, now())", [$seed, $_POST['language'], $_POST['mode'], json_encode($_POST['types']), $n, json_encode($items, JSON_UNESCAPED_UNICODE), json_encode($board), (int)isset($_POST['multiplayer']), $_SESSION['user_id']]);
-		header("Location: ./?go=game&seed=$seed");
+		header('Location: ./?go=' . (isset($_GET['daily']) ? "daily&lang=$_GET[daily]" : "game&seed=$seed"));
 		break;
 	// Sorting: b's cluster is appended to a's: b's first word gets a's last one as previous; answers with the category's name when its cluster is complete.
 	// Chain: clusters are runs of the cycle, two merge when one's last word links to the other's first, which sets the last word's flag; swap says b's cluster comes first.
@@ -259,6 +273,12 @@ switch ($_POST['action'])
 					where p.seed = ? and p.user_id not in (0, 1) and ? in (1, p.user_id) and g.finished_at is not null and kg.finished_at is not null and p.mistakes < k.mistakes", [$seed, $user])->fetch_all();
 			foreach ($winners ?? [] as [$winner]) achieve($winner, 'sg_klaus', 1);
 		}
+		// Achievements of a finished daily: the streak of finished dailies in its language, and its size when finished without mistakes
+		if (($finished ?? false) and preg_match($daily, $seed))
+		{
+			achieve($user, 'sg_streak', streak($user, $seed));
+			if (!$mysql->execute_query("select mistakes from player where seed = ? and user_id = ?", [$seed, $user])->fetch_column()) achieve($user, 'sg_flawless', $game['size']);
+		}
 		echo json_encode($answer);
 		break;
 	// The ten best players of the seed by combinations minus mistakes, finished or not, and this player below them if further down
@@ -276,7 +296,7 @@ switch ($_POST['action'])
 		$items = json_decode($game['items']);
 		$chain = $game['mode'] == 'chain';
 		$cats = array_fill_keys(array_column($items, 1), 0);
-		$pairs = $tried = $prev = [];
+		$pairs = $tried = $prev = $log = [];
 		$single = array_fill(0, count($items), true);
 		$made = array_fill(0, count($items), false);
 		if ($chain) foreach ($items as $i => $w) $prev[$w[2]] = $i;
@@ -285,6 +305,7 @@ switch ($_POST['action'])
 		foreach ($mysql->execute_query("select user_id, a, b, success from attempt where seed = ? and (? or user_id = ?) order by id", [$seed, $game['multiplayer'], $user]) as $r)
 		{
 			[$a, $b] = [(int)$r['a'], (int)$r['b']];
+			if ($r['user_id'] == $user) $log[] = (int)$r['success'];
 			if ($r['success'])
 			{
 				if ($chain) $made[$items[$tail($a)][2] != $head($b) ? $tail($b) : $tail($a)] = true;
@@ -319,7 +340,9 @@ switch ($_POST['action'])
 		$worst = $top($cats, 1);
 		asort($cats);
 		$best = count(array_keys($cats, 0)) < 3 ? array_slice(array_diff_key($cats, $worst), 0, 3, true) : [];
-		echo json_encode(['pairs' => $entries($top($pairs, 3)), 'worst' => $entries($worst), 'best' => $entries($best), 'tried' => $entries($top($tried, sqrt(count($items)) / 2))]);
+		// For a daily's share text: this player's attempts in order as success or mistake, and their streak
+		echo json_encode(['pairs' => $entries($top($pairs, 3)), 'worst' => $entries($worst), 'best' => $entries($best), 'tried' => $entries($top($tried, sqrt(count($items)) / 2)),
+			'log' => $log, 'streak' => preg_match($daily, $seed) ? streak($user, $seed) : 0]);
 		break;
 	case 'layout':
 		$mysql->execute_query("update player set layout = ? where seed = ? and user_id = ?", [$_POST['layout'], $seed, $user]);
@@ -327,6 +350,16 @@ switch ($_POST['action'])
 	case 'slots':
 		$mysql->execute_query("update player set slots = ? where seed = ? and user_id = ?", [$_POST['slots'], $seed, $user]);
 		break;
+}
+
+// the number of consecutive dailies in the language of daily $seed that $user finished, ending with that day's
+function streak($user, $seed)
+{
+	global $mysql;
+	[$day, $language] = [substr($seed, 0, 10), substr($seed, 11)];
+	$done = array_flip(array_column($mysql->execute_query("select seed from game where created_by = ? and finished_at is not null and seed like ?", [$user, "____-__-__-$language"])->fetch_all(), 0));
+	for ($n = 0; isset($done[date('Y-m-d', strtotime("$day -$n day")) . "-$language"]); $n++);
+	return $n;
 }
 
 // grants the level $n reaches on $key's thresholds, at or below them if $invert; a level raised for this session's player goes into the merge's answer

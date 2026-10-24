@@ -34,6 +34,18 @@ $events['sg_klaus'] = $mysql->execute_query("select p.user_id, 1, g.finished_at 
 		join player k on k.seed = g.seed and k.user_id = 1 join game kg on kg.seed = g.seed and kg.created_by = 1
 		where not g.multiplayer and g.mode = 'sorting' and g.finished_at is not null and kg.finished_at is not null and p.user_id not in (0, 1) and p.mistakes < k.mistakes
 	order by 3")->fetch_all();
+// finished dailies: the run of consecutive days in a language each reaches, and the size of those without mistakes
+$run = [];
+foreach ($mysql->execute_query("select g.seed, g.size, g.finished_at, p.user_id, p.mistakes from game g join player p on p.seed = g.seed and p.user_id = g.created_by
+	where g.seed regexp '^[0-9]{4}-[0-9]{2}-[0-9]{2}-' and g.finished_at is not null and p.user_id > 0 order by g.seed") as $row)
+{
+	[$day, $language] = [substr($row['seed'], 0, 10), substr($row['seed'], 11)];
+	$r = &$run[$row['user_id']][$language];
+	$r = ($r[0] ?? '') == date('Y-m-d', strtotime("$day -1 day")) ? [$day, $r[1] + 1] : [$day, 1];
+	$events['sg_streak'][] = [$row['user_id'], $r[1], $row['finished_at']];
+	unset($r);
+	if (!$row['mistakes']) $events['sg_flawless'][] = [$row['user_id'], $row['size'], $row['finished_at']];
+}
 
 identityConnect();
 foreach ($catalogue['sortinggame']['badges'] as $key => $entry)
