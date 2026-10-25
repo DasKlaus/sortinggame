@@ -55,7 +55,7 @@ function finishCategory(b, category) {
 
 function showCluster(b) {
   if (b.cluster.length>1) {
-	  b.className = 'cluster';
+	  b.classList.add('cluster');
 	  b.style.setProperty('--fill', b.cluster.length / full);
 	  b.title = 'show all items by clicking the number or right-clicking';
   }
@@ -116,6 +116,7 @@ function setUpBoard(words) {
     };
     button.onclick = async function(e) {
       if (button.category || e.target.className == 'size') return showPopout(button);
+      if (button.pending) return;
       if (selected == button) {
         deselect();
         return;
@@ -128,7 +129,9 @@ function setUpBoard(words) {
       }
       const other = selected;
       selected = 0;
+      button.pending = other.pending = true;
       const {valid, category, stale, link, swap} = await check(button, other);
+      button.pending = other.pending = false;
       if (valid) {
         other.style.filter = "";
         button.style.filter = "";
@@ -148,7 +151,7 @@ function setUpBoard(words) {
           x.classList.add('shake');
           x.addEventListener('animationend', () => {
             x.classList.remove('shake');
-            x.style.filter = "";
+            if (x != selected) x.style.filter = "";
           }, { once: true });
         }
       }
