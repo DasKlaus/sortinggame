@@ -84,28 +84,36 @@ else {
 		identityForm('en');
 	}
 ?>
+<div id="play">
+<?php
+	// This player's games without dailies, newest first: unfinished ones with the board's progress, the last 25 finished ones with their score
+	if ($_SESSION['user_id']) foreach (['Unfinished' => 'null', 'Finished' => 'not null'] as $label => $finished) {
+?>
+<details<?php echo $finished == 'null' ? ' open' : '' ?>><summary><?php echo $label ?> games</summary>
+<?php foreach ($mysql->execute_query("select g.seed, date_format(g.created_at, '%d.%m.%Y %H:%i') created, g.size, g.language, g.board, p.score - p.mistakes total from game g join player p on p.seed = g.seed and p.user_id = ?
+		where (g.multiplayer or g.created_by = p.user_id) and g.seed not like '____-__-__-%' and g.finished_at is $finished order by g.created_at desc" . ($finished == 'null' ? '' : ' limit 25'), [$_SESSION['user_id']]) as $g) { ?>
+	<a class="game" href="?go=game&amp;seed=<?php echo $g['seed'] ?>"><span><?php echo $g['created'] ?></span><span><?php echo "$g[size]×$g[size]" ?></span><span><?php echo $g['language'] ?></span><span><?php echo $finished == 'null' ? ($g['size'] < 2 ? 100 : floor(100 * count(array_diff(json_decode($g['board']), [-1])) / ($g['size'] * ($g['size'] - 1)))) . '%' : $g['total'] ?></span></a>
+<?php } ?>
+</details>
+<?php } ?>
+<h3>New game</h3>
 <form id="buttons" method="post" action="receiver.php">
 	<input type="hidden" name="action" value="create">
-	<label for="size">Size: </label><select id="size" name="size"><option value="5">5x5</option><option value="10">10x10</option><option value="15">15x15</option><option value="20">20x20</option><option value="25">25x25</option></select><select id="words" name="size" hidden disabled><option value="25">25 words</option></select>
+	<label for="size">Size: </label><select id="size" name="size"><option value="5">5x5</option><option value="10">10x10</option><option value="15">15x15</option><option value="20">20x20</option><option value="25">25x25</option></select>
 	<label for="lang">Language: </label><select id="lang" name="language"><option value="en">en</option><option value="de">de</option></select>
-	<label for="mode">Mode: </label><select id="mode" name="mode"><option value="sorting">Sorting</option><option value="chain">Chain</option></select>
 	<label><input type="checkbox" name="multiplayer" value="1">Multiplayer</label>
-	<br>
 <?php $types = $mysql->query("select distinct type from category order by type")->fetch_all(); ?>
-	<label for="types">Category types: </label><select id="types" name="types[]" multiple size="<?php echo count($types) ?>">
+	<details><summary>Restrict game categories</summary>
+		<select id="types" name="types[]" multiple size="<?php echo count($types) ?>">
 <?php foreach ($types as [$type]) { ?>
-		<option value="<?php echo $type ?>" selected><?php echo $type ?></option>
+			<option value="<?php echo $type ?>" selected><?php echo $type ?></option>
 <?php } ?>
-	</select>
-	<small>Ctrl-click to pick several</small>
+		</select>
+		<small>Ctrl-click to pick several</small>
+	</details>
 	<button type="submit">Generate</button>
 </form>
-<script>
-// A chain's size is its number of words, and it needs at least three category types
-const form = document.getElementById('buttons');
-form.mode.onchange = () => form.querySelectorAll('[name=size]').forEach(s => s.hidden = s.disabled = (s.id == 'words') != (form.mode.value == 'chain'));
-form.onsubmit = () => form.mode.value != 'chain' || form['types[]'].selectedOptions.length >= 3 || (alert('A chain needs at least three category types.'), false);
-</script>
+</div>
 <?php
 }
 ?>

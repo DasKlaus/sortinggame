@@ -67,6 +67,7 @@ switch ($_POST['action'])
 			break;
 		}
 		identify();
+		$_POST['mode'] ??= 'sorting';
 		$size = (int)$_POST['size'];
 		if ($_POST['mode'] == 'chain')
 		{
