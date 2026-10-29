@@ -5,7 +5,10 @@
 body {background: var(--bg); color: var(--fg); text-align: center; margin: 0; font-family: Georgia, serif; font-size: 18px;}
 nav {width: 100%; box-sizing: border-box; background: #000; padding: 5px; color: #fff;}
 nav a {text-decoration: none; color: #fff;}
-nav a + a::before {content: "·"; padding: 0 18px;}
+/* The header's links wrap; the gap before a dot belongs to the link on its left, the dot and the gap after it to the link on its right */
+nav:has(> a) {display: flex; flex-wrap: wrap; justify-content: center;}
+nav a:has(+ a) {padding-right: 18px;}
+nav a + a::before {content: "·"; padding-right: 18px;}
 nav + nav {top: unset;}
 p {text-align: left; padding: 0 30px; max-width: 1000px; margin: 1em auto;}
 form div {display: inline;}
@@ -102,6 +105,7 @@ body:has(#board.grid:not(.start)) {display: flex; flex-direction: column; min-he
 .curation .close {float: right; border: none;}
 .curation .columns {display: grid; grid-template-columns: repeat(auto-fit, minmax(15em, 1fr)); gap: 1em; align-items: start; margin: .5em 0;}
 .curation .card {border: 1px solid var(--line); border-radius: 2px; padding: .3em .5em; margin-top: .4em;}
+.curation .info {white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
 .curation .column:not(.open) .card:nth-of-type(n+4) {display: none;}
 .curation .tag {color: #000; padding: 0 .25em; border-radius: 2px;}
 .curation button {font-size: 14px; padding: .2em .6em; min-height: 2em;}

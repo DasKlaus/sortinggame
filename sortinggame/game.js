@@ -79,11 +79,11 @@ async function showCuration() {
   const apart = (c, d) => key('apart', '', ...[c, d].sort());
   const options = (k, list) => '<span class="choices">' + list.map(([v, label]) => `<button type="button" data-key="${k}" data-value="${v}">${label}</button>`).join('') + '</span>';
   const member = (w, c, labels) => options(key('membership', w, c, ''), [['normal', labels[0]], ['obscure', 'Obscure'], ['none', labels[1]]]);
-  const card = (head, info, choices) => `<div class="card">${head}<small>${info}</small>${choices}</div>`;
+  const card = (head, info, choices) => `<div class="card">${head}<small class="info">${info}</small>${choices}</div>`;
   const column = (title, info, cards) => cards.length ? `<div class="column"><b>${title}</b><small>${info}</small>${cards.join('')}` +
     (cards.length > 3 ? `<button type="button" class="more" onclick="this.parentNode.classList.add('open'); this.remove()">${cards.length - 3} more</button>` : '') + '</div>' : '';
   const columns = column('Should this have counted?', "Words you tried with a category's cluster. Larger clusters and repeated tries rank higher.",
-      curation.near.map(([w, c, n]) => card(`<strong>${esc(w)}</strong> with ${tag(c)} · ${n}×`, esc(cats.find(b => b.category == c).cluster.slice(0, 4).join('; ')) + ' …', member(w, c, ['Counts', 'Fair mistake'])))) +
+      curation.near.map(([w, c, n]) => card(`<strong>${esc(w)}</strong> with ${tag(c)} · ${n}×`, esc(cats.find(b => b.category == c).cluster.join('; ')), member(w, c, ['Counts', 'Fair mistake'])))) +
     column('Mixed-up categories', 'Pairs with the most mistakes between their clusters.',
       curation.mixups.map(([c, d, n]) => card(`${tag(c)} and ${tag(d)}`, n == 1 ? '1 mistake' : `${n} mistakes`, options(apart(c, d), [['1', 'Keep apart'], ['0', 'Fine together']])))) +
     column('Found only after mistakes', 'Words that joined their category after failed tries, at any point in the game.',
