@@ -54,7 +54,7 @@ function award(onclick, symbol = '🏆') {
 //Once every word is in a finished category, a trophy opens the end screen, and in a sorting game 🛠️ the feedback view
 function end(show) {
   if (trophy || !buttons.every(b => b.disabled || b.category)) return;
-  trophy = award(showEnd);
+  trophy = award(showEnd, '🎉');
   if (!chain) award(() => location = '?go=feedback&seed=' + state.seed, '🛠️');
   if (show) showEnd();
 }

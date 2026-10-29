@@ -57,8 +57,8 @@ $data = [
 	'saved' => $mysql->execute_query("select kind, item, category, other, value from feedback where seed = ? and user_id = ?", [$seed, $user])->fetch_all()];
 ?>
 <div id="feedback">
-<h2>Improve the categories</h2>
-<small>Answers are saved for review; nothing on the board changes. <i>Obscure</i>: correct, but that category never uses it, so the two never share a board.</small>
+<h2>Improve the categories <button type="button" onclick="location = '?go=game&seed=' + data.seed">Back to the game</button></h2>
+<small>Answers are saved for review; nothing on the board changes. <i>Obscure</i>: correct but obscure <i>or</i> easy to misattribute: that category never uses it, but the two never share a board.</small>
 <div id="columns" class="columns"></div>
 <details<?php echo $mixups ? '' : ' open' ?>><summary>Anything else</summary>
 <small>For what your mistakes didn't catch. Tap a word to fix its spelling or memberships.</small>
@@ -82,14 +82,14 @@ const choices = (k, list) => '<span class="choices">' + list.map(([v, label]) =>
 const membership = (yes, no) => [['normal', yes], ['obscure', 'Obscure'], ['none', no]];
 const card = (k, n, head, info, list) => ({key: k, n, html: `<div class="card">${head}<small class="info">${info}</small>${choices(k, list)}</div>`});
 const columns = [
-  {title: 'Should this have counted?', info: "Words you tried with a category's cluster. Larger clusters and repeated tries rank higher.",
+  {title: 'Should this have counted?', info: "Words you tried with a category's cluster.",
     cards: data.near.map(([w, c, n]) => card(key('membership', w, c, ''), n, `<strong>${esc(w)}</strong> with ${tag(c)} · ${n}×`, esc(words[c].join('; ')), membership('Counts', 'Fair mistake')))},
   {title: 'Mixed-up categories', info: 'Pairs with the most mistakes between their clusters.',
     cards: data.mixups.map(([c, d, n]) => card(apart(c, d), n, `${tag(c)} and ${tag(d)}`, n == 1 ? '1 mistake' : `${n} mistakes`, [['1', 'Keep apart'], ['0', 'Fine together']]))},
-  {title: 'Found only after mistakes', info: 'Words that joined their category after failed tries, at any point in the game.',
+  {title: 'Found only after mistakes', info: 'Words that joined their category after failed tries.',
     cards: data.late.map(([w, n, tried]) => card(key('membership', w, of[w], ''), n, `<strong>${esc(w)}</strong> in ${tag(of[w])}`,
       `${n} failed ${n == 1 ? 'try' : 'tries'}: ` + tried.map(([c, k]) => `${tag(c)} ${k}×`).join(', '), membership('Fine', 'Wrong')))},
-].filter(c => c.cards.length);
+].filter(() => data.mixups.length);  // every mistake is a mixup, so all columns show once there is any
 
 function showColumns() {
   for (const d of document.querySelectorAll('#columns details')) columns[d.parentNode.dataset.column].answeredOpen = d.open;
@@ -129,7 +129,13 @@ function editor(w) {
 document.getElementById('categories').innerHTML = data.categories.map(([c, ws]) => `<details><summary>${tag(c)}</summary>` +
   ws.map(w => `<button type="button" class="chip" data-word="${esc(w)}">${esc(w)}</button>`).join('') + '<div class="editor"></div><small>Keep apart from</small>' +
   data.categories.filter(([d]) => d != c).map(([d]) => `<button type="button" class="chip" data-key="${esc(apart(c, d))}" data-value="1">${tag(d)}</button>`).join('') + '</details>').join('');
-page.querySelector('textarea').value = saved[key('text', '', '', '')] ?? '';
+// The free text's label says it's saved when the field is left holding the saved text, until it's typed in again
+const text = page.querySelector('textarea');
+const textSaved = done => text.previousElementSibling.textContent = 'Free-form feedback' + (done ? ' (saved)' : '');
+text.value = saved[text.dataset.key] ?? '';
+text.oninput = () => textSaved(false);
+text.onblur = () => textSaved(text.value.trim() && text.value.trim() == saved[text.dataset.key]);
+text.onblur();
 showColumns();
 
 page.onclick = e => {
