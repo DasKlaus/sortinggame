@@ -34,8 +34,8 @@ button:hover {background: var(--hover);}
 
 #popout {position: fixed; inset: 0; background: #0006; display: flex; align-items: center; justify-content: center;}
 #popout[hidden] {display: none;}
-#popout > div {background: var(--bg); padding: 1em 2em; border-radius: 4px; max-width: 80vw; max-height: 80vh; overflow-y: auto;}
-#popout > div > * {display: block;}
+#popout div {background: var(--bg); padding: 1em 2em; border-radius: 4px; max-width: 80vw; max-height: 80vh; overflow-y: auto;}
+#popout div > * {display: block;}
 #popout b {margin-bottom: .5em;}
 #popout i {color: var(--muted);}
 #popout table {display: table; margin: 0 auto 1em; border-collapse: collapse;}
@@ -97,23 +97,20 @@ body:has(#board.grid:not(.start)) {display: flex; flex-direction: column; min-he
   100%{transform: translateX(1px)  rotate(-1deg);}
 }
 
-/* The curation form: suggestion columns that stack on narrow screens, finished categories as tags in their board colour, answers as buttons, the selected one inverted */
-#popout > div:has(> .curation) {max-width: 95vw; padding: 1em;}
-.curation {width: min(60em, 85vw); text-align: left; font-size: 16px;}
-.curation > b, .curation .column > b {display: block; margin: 0;}
-.curation small {display: block; color: var(--muted); font-size: 13px; margin: .1em 0 .3em;}
-.curation .close {float: right; border: none;}
-.curation .columns {display: grid; grid-template-columns: repeat(auto-fit, minmax(15em, 1fr)); gap: 1em; align-items: start; margin: .5em 0;}
-.curation .card {border: 1px solid var(--line); border-radius: 2px; padding: .3em .5em; margin-top: .4em;}
-.curation .info {white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
-.curation .column:not(.open) .card:nth-of-type(n+4) {display: none;}
-.curation .tag {color: #000; padding: 0 .25em; border-radius: 2px;}
-.curation button {font-size: 14px; padding: .2em .6em; min-height: 2em;}
-.curation button.on {background: var(--fg); color: var(--bg);}
-.curation .choices {display: flex; flex-wrap: wrap; gap: .25em;}
-.curation .chip {margin: .2em .2em 0 0; padding: .1em .3em;}
-.curation .chip.obscure .tag::after {content: " · obscure";}
-.curation .more {display: block; margin: .4em auto 0;}
-.curation summary {cursor: pointer; margin: .3em 0;}
-.curation > details {border-top: 1px solid var(--line); padding-top: .5em;}
-.curation input, .curation textarea {display: block; width: 100%; box-sizing: border-box; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--border);}
+/* The feedback view: suggestion columns that stack on narrow screens, finished categories as tags in their board colour, answers as buttons, the selected one inverted */
+#feedback {text-align: left; padding: 0 min(30px, 3vw) 1em; font-size: 16px;}
+#feedback small {display: block; color: var(--muted); font-size: 13px; margin: .1em 0 .3em;}
+#feedback .columns {display: grid; grid-template-columns: repeat(auto-fit, minmax(15em, 1fr)); gap: 1em; align-items: start; margin: .5em 0;}
+#feedback .column > b {display: block;}
+#feedback .card {border: 1px solid var(--line); border-radius: 2px; padding: .3em .5em; margin-top: .4em;}
+#feedback .info {white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+#feedback .tag {color: #000; padding: 0 .25em; border-radius: 2px;}
+#feedback button {font-size: 14px; padding: .2em .6em; min-height: 2em;}
+#feedback button.on {background: var(--fg); color: var(--bg);}
+#feedback .choices {display: flex; flex-wrap: wrap; gap: .25em;}
+#feedback .chip {margin: .2em .2em 0 0; padding: .1em .3em;}
+#feedback .chip.obscure .tag::after {content: " · obscure";}
+#feedback .more {display: block; margin: .4em auto 0;}
+#feedback summary {cursor: pointer; margin: .3em 0;}
+#feedback > details {border-top: 1px solid var(--line); padding-top: .5em;}
+#feedback input, #feedback textarea {display: block; width: 100%; box-sizing: border-box; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--border);}

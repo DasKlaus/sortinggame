@@ -24,7 +24,7 @@ if ($go == 'daily')
 	<title>The Sorting Game</title>
 	<link rel="stylesheet" href="style.css">
 	<meta name="description" content="Combine items two at a time into categories">
-	<meta name="robots" content="<?php echo $go == 'game' ? 'noindex,nofollow' : 'index,nofollow'; ?>">
+	<meta name="robots" content="<?php echo in_array($go, ['game', 'feedback']) ? 'noindex,nofollow' : 'index,nofollow'; ?>">
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<meta property="og:type" content="website">
@@ -39,6 +39,7 @@ if ($go == 'daily')
 <?php
 identityMessage('en');
 if ($go == 'game') include 'game.php';
+elseif ($go == 'feedback') include 'feedback.php';
 elseif ($go == 'profile') {
 	echo '<h2>Profile</h2>';
 	identityForm('en');

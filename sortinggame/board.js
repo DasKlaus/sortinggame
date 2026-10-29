@@ -1,4 +1,4 @@
-// Board logic shared by the game page and the start page.
+// Board logic shared by the game page and the start page; the feedback view uses its helpers esc and stringToLightColor.
 // The page defines check(a, b) (called to merge b's cluster into a's, returns {valid, category, stale, link, swap} or a promise of it, with the category's name when the merge completes it, and stale when it came too late to count;
 // in a chain the link's category, swap when b's cluster comes first, and the category closing the cycle when the chain is finished), moved() (called after every click) and categoryDone(button, category).
 
@@ -17,6 +17,10 @@ function deselect() {
     moved();
   }
 }
+
+
+
+const esc = s => s.replace(/[&<>"]/g, c => '&#' + c.charCodeAt(0) + ';');
 
 
 

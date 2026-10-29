@@ -345,53 +345,7 @@ switch ($_POST['action'])
 		echo json_encode(['pairs' => $entries($top($pairs, 3)), 'worst' => $entries($worst), 'best' => $entries($best), 'tried' => $entries($top($tried, sqrt(count($items)) / 2)),
 			'log' => $log, 'streak' => preg_match($daily, $seed) ? streak($user, $seed) : 0]);
 		break;
-	// Suggestions for the curation form of a finished sorting game from this player's mistakes, replaying the log to know the clusters at each attempt, and the answers saved so far.
-	// near: a word on its own tried with a cluster of two or more, towards that cluster's category; mixups: every mistake, towards the pair of categories;
-	// late: a word's tries while on its own, by the other side's category
-	case 'curation':
-		$game = $mysql->execute_query("select items, multiplayer from game where seed = ? and (multiplayer or created_by = ?)", [$seed, $user])->fetch_assoc();
-		$items = json_decode($game['items']);
-		$cluster = range(0, count($items) - 1);
-		$members = array_map(fn($i) => [$i], $cluster);
-		$near = $mixups = $late = [];
-		foreach ($mysql->execute_query("select user_id, a, b, success from attempt where seed = ? and (? or user_id = ?) order by id", [$seed, $game['multiplayer'], $user]) as $r)
-		{
-			[$a, $b] = [(int)$r['a'], (int)$r['b']];
-			[$ha, $hb] = [$cluster[$a], $cluster[$b]];
-			if ($r['success'])
-			{
-				foreach ($members[$hb] as $m) $cluster[$m] = $ha;
-				$members[$ha] = [...$members[$ha], ...$members[$hb]];
-				unset($members[$hb]);
-			}
-			elseif ($r['user_id'] == $user)
-			{
-				$pair = [$items[$a][1], $items[$b][1]];
-				sort($pair, SORT_STRING);
-				$p = json_encode($pair, JSON_UNESCAPED_UNICODE);
-				$mixups[$p] = ($mixups[$p] ?? 0) + 1;
-				foreach ([[$ha, $hb], [$hb, $ha]] as [$x, $h]) if (count($members[$x]) == 1)
-				{
-					[$w, $c] = [$items[$x][0], $items[$h][1]];
-					$late[$w][$c] = ($late[$w][$c] ?? 0) + 1;
-					if (count($members[$h]) > 1) $near["$w\n$c"] = [$w, $c, ($near["$w\n$c"][2] ?? 0) + 1, max($near["$w\n$c"][3] ?? 0, count($members[$h]))];
-				}
-			}
-		}
-		// Most tries first; near misses with bigger clusters first among equals
-		$near = array_values($near);
-		usort($near, fn($x, $y) => [$y[2], $y[3]] <=> [$x[2], $x[3]]);
-		arsort($mixups);
-		uasort($late, fn($x, $y) => array_sum($y) <=> array_sum($x));
-		foreach ($late as &$tried) arsort($tried);
-		unset($tried);
-		echo json_encode([
-			'near' => array_map(fn($n) => array_slice($n, 0, 3), $near),
-			'mixups' => array_map(fn($p, $n) => [...json_decode($p), $n], array_keys($mixups), $mixups),
-			'late' => array_map(fn($w, $tried) => [(string)$w, array_sum($tried), array_map(null, array_keys($tried), $tried)], array_keys($late), $late),
-			'saved' => $mysql->execute_query("select kind, item, category, other, value from feedback where seed = ? and user_id = ?", [$seed, $user])->fetch_all()]);
-		break;
-	// One answer of the curation form, an empty value takes it back
+	// One answer of the feedback view, an empty value takes it back
 	case 'feedback':
 		$key = [$seed, $user, $_POST['kind'], $_POST['item'], $_POST['category'], $_POST['other']];
 		if ($_POST['value'] === '') $mysql->execute_query("delete from feedback where seed = ? and user_id = ? and kind = ? and item = ? and category = ? and other = ?", $key);
