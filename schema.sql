@@ -3,6 +3,7 @@ DROP TABLE IF EXISTS `game`;
 DROP TABLE IF EXISTS `membership`;
 DROP TABLE IF EXISTS `category`;
 DROP TABLE IF EXISTS `attempt`;
+DROP TABLE IF EXISTS `feedback`;
 
 CREATE TABLE `category` (
 	`id` int(10) NOT NULL AUTO_INCREMENT,
@@ -60,4 +61,17 @@ CREATE TABLE `attempt` ( -- log of merges and mistakes, stale merges are left ou
 	`created_at` datetime NOT NULL,
 	PRIMARY KEY (`id`),
 	KEY (`seed`, `user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `feedback` ( -- curation feedback from finished sorting games, one row per answer, saved for review, never applied directly
+	`seed` varchar(16) NOT NULL,
+	`user_id` bigint(20) NOT NULL,
+	`display_name` varchar(255) NOT NULL,
+	`kind` varchar(16) NOT NULL, -- membership, apart, spelling, text
+	`item` varchar(255) NOT NULL DEFAULT '' COLLATE utf8mb4_bin, -- membership, spelling
+	`category` varchar(128) NOT NULL DEFAULT '', -- name as on the board; membership, spelling, apart
+	`other` varchar(128) NOT NULL DEFAULT '', -- apart: the second category, the pair in sorted order
+	`value` text NOT NULL, -- membership: normal, obscure or none; apart: 1 or 0; spelling: the new spelling; text: the feedback
+	`created_at` datetime NOT NULL,
+	PRIMARY KEY (`seed`, `user_id`, `kind`, `item`, `category`, `other`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

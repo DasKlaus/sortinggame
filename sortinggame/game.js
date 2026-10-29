@@ -7,10 +7,14 @@ let trophy;  // The button reopening the end screen, once the game is finished
 let highscores;  // Fetched once, when the end screen first opens
 let stats;  // Feedback on this player's mistakes, fetched with the highscores
 let achievements = [];  // Achievements this player earned with the merge that finished the game, until they are on the board
+let curation;  // Suggestions from this player's mistakes and their saved answers, fetched when the curation form first opens
 
 
 
 // Functions
+
+
+const esc = s => s.replace(/[&<>"]/g, c => '&#' + c.charCodeAt(0) + ';');
 
 
 function send(data) {
@@ -38,11 +42,11 @@ function reflow() {
 }
 
 
-//A trophy button takes the first hole, or goes after the categories
-function award(onclick) {
+//A trophy (or other symbol) button takes the first hole, or goes after the categories
+function award(onclick, symbol = '🏆') {
   const b = document.createElement('button');
-  b.textContent = '🏆';
-  b.cluster = ['🏆'];
+  b.textContent = symbol;
+  b.cluster = [symbol];
   b.onclick = onclick;
   const board = document.getElementById('board');
   const gap = board.querySelector('.gone');
@@ -51,11 +55,78 @@ function award(onclick) {
 }
 
 
-//Once every word is in a finished category, a trophy opens the end screen
+//Once every word is in a finished category, a trophy opens the end screen, and in a sorting game 🛠️ the curation form
 function end(show) {
   if (trophy || !buttons.every(b => b.disabled || b.category)) return;
   trophy = award(showEnd);
+  if (!chain) award(showCuration, '🛠️');
   if (show) showEnd();
+}
+
+
+//The curation form of a finished sorting game: suggestions from this player's mistakes, and every category with its words for anything else.
+//Each answer is saved for review as soon as it's given, under the key [kind, item, category, other] of the feedback table; tapping a selected answer takes it back.
+//A membership's answer is the state it should have: normal, obscure or none. The "also belongs to" chips cycle through normal, obscure and no answer.
+async function showCuration() {
+  if (!curation) {
+    curation = await (await send({action: 'curation'})).json();
+    curation.saved = Object.fromEntries(curation.saved.map(([kind, item, category, other, value]) => [JSON.stringify([kind, item, category, other]), value]));
+  }
+  const cats = buttons.filter(b => b.category);
+  const of = Object.fromEntries(cats.flatMap(b => b.cluster.map(w => [w, b.category])));
+  const tag = c => `<span class="tag" style="background: ${stringToLightColor(c)}">${esc(c)}</span>`;
+  const key = (...k) => esc(JSON.stringify(k));
+  const apart = (c, d) => key('apart', '', ...[c, d].sort());
+  const options = (k, list) => '<span class="choices">' + list.map(([v, label]) => `<button type="button" data-key="${k}" data-value="${v}">${label}</button>`).join('') + '</span>';
+  const member = (w, c, labels) => options(key('membership', w, c, ''), [['normal', labels[0]], ['obscure', 'Obscure'], ['none', labels[1]]]);
+  const card = (head, info, choices) => `<div class="card">${head}<small>${info}</small>${choices}</div>`;
+  const column = (title, info, cards) => cards.length ? `<div class="column"><b>${title}</b><small>${info}</small>${cards.join('')}` +
+    (cards.length > 3 ? `<button type="button" class="more" onclick="this.parentNode.classList.add('open'); this.remove()">${cards.length - 3} more</button>` : '') + '</div>' : '';
+  const columns = column('Should this have counted?', "Words you tried with a category's cluster. Larger clusters and repeated tries rank higher.",
+      curation.near.map(([w, c, n]) => card(`<strong>${esc(w)}</strong> with ${tag(c)} · ${n}×`, esc(cats.find(b => b.category == c).cluster.slice(0, 4).join('; ')) + ' …', member(w, c, ['Counts', 'Fair mistake'])))) +
+    column('Mixed-up categories', 'Pairs with the most mistakes between their clusters.',
+      curation.mixups.map(([c, d, n]) => card(`${tag(c)} and ${tag(d)}`, n == 1 ? '1 mistake' : `${n} mistakes`, options(apart(c, d), [['1', 'Keep apart'], ['0', 'Fine together']])))) +
+    column('Found only after mistakes', 'Words that joined their category after failed tries, at any point in the game.',
+      curation.late.map(([w, n, tried]) => card(`<strong>${esc(w)}</strong> in ${tag(of[w])}`, `${n} failed ${n == 1 ? 'try' : 'tries'}: ` + tried.map(([c, k]) => `${tag(c)} ${k}×`).join(', '), member(w, of[w], ['Fine', 'Wrong']))));
+  const editor = w => `<div class="card"><small>Spelling</small><input data-key="${key('spelling', w, of[w], '')}" value="${esc(curation.saved[JSON.stringify(['spelling', w, of[w], ''])] ?? w)}">` +
+    `<small>In ${tag(of[w])}</small>${member(w, of[w], ['Fine', 'Wrong'])}<small>Also belongs to (tap once: counts, twice: obscure)</small>` +
+    cats.filter(b => b.category != of[w]).map(b => `<button type="button" class="chip" data-key="${key('membership', w, b.category, '')}" data-cycle>${tag(b.category)}</button>`).join('') + '</div>';
+  const categories = cats.map(b => `<details><summary>${tag(b.category)}</summary>` + b.cluster.map(w => `<button type="button" class="chip" data-word="${esc(w)}">${esc(w)}</button>`).join('') +
+    '<div class="editor"></div><small>Keep apart from</small>' + cats.filter(o => o != b).map(o => `<button type="button" class="chip" data-key="${apart(b.category, o.category)}" data-value="1">${tag(o.category)}</button>`).join('') + '</details>').join('');
+  openPopout(`<div class="curation"><button type="button" class="close" onclick="popout.hidden = true">✕</button><b>Improve the categories</b>` +
+    `<small>${columns ? 'Built from your mistakes. ' : ''}Answers are saved for review; nothing on the board changes. <i>Obscure</i>: correct, but that category never uses it, so the two never share a board.</small>` +
+    `<div class="columns">${columns}</div><details${columns ? '' : ' open'}><summary>Anything else</summary><small>For what your mistakes didn't catch. Tap a word to fix its spelling or memberships.</small>` +
+    `<div class="columns"><div>${categories}</div><div><small>Free-form feedback</small><textarea rows="4" data-key="${key('text', '', '', '')}">${esc(curation.saved[JSON.stringify(['text', '', '', ''])] ?? '')}</textarea></div></div></details></div>`);
+  const form = popout.querySelector('.curation');
+  const mark = () => form.querySelectorAll('button[data-key]').forEach(b => {
+    const v = curation.saved[b.dataset.key];
+    b.classList.toggle('on', 'cycle' in b.dataset ? v == 'normal' || v == 'obscure' : v == b.dataset.value);
+    b.classList.toggle('obscure', 'cycle' in b.dataset && v == 'obscure');
+  });
+  const save = (k, value) => {
+    if (value) curation.saved[k] = value;
+    else delete curation.saved[k];
+    const [kind, item, category, other] = JSON.parse(k);
+    send({action: 'feedback', kind, item, category, other, value});
+    mark();
+  };
+  mark();
+  form.onclick = e => {
+    e.stopPropagation();
+    const b = e.target.closest('button');
+    if (b?.dataset.word) {
+      b.parentNode.querySelector('.editor').innerHTML = editor(b.dataset.word);
+      return mark();
+    }
+    if (!b?.dataset.key) return;
+    const v = curation.saved[b.dataset.key];
+    save(b.dataset.key, 'cycle' in b.dataset ? {normal: 'obscure', obscure: ''}[v] ?? 'normal' : v == b.dataset.value ? '' : b.dataset.value);
+  };
+  //Spelling and free text: a spelling back to the word itself, or an emptied text, takes the answer back
+  form.onchange = e => {
+    const v = e.target.value.trim();
+    save(e.target.dataset.key, v == JSON.parse(e.target.dataset.key)[1] ? '' : v);
+  };
 }
 
 
@@ -63,7 +134,6 @@ function end(show) {
 async function showEnd() {
   highscores ??= await (await send({action: 'highscores'})).json();
   stats ??= await (await send({action: 'stats'})).json();
-  const esc = s => s.replace(/[&<>"]/g, c => '&#' + c.charCodeAt(0) + ';');
   const word = i => '“' + esc(state.words[i]) + '”';
   const line = (label, entries, show) => entries.length ? `<li>${label}: ${entries.map(show).join(', ')}</li>` : '';
   const feedback = line('Wrong pairs tried most', stats.pairs, ([p, n]) => p.split(',').map(word).join(' and ') + ` (${n} times)`) +
