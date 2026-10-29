@@ -86,13 +86,15 @@ else {
 ?>
 <div id="play">
 <?php
-	// This player's games without dailies, newest first: unfinished ones with the board's progress, the last 25 finished ones with their score
-	if ($_SESSION['user_id']) foreach (['Unfinished' => 'null', 'Finished' => 'not null'] as $label => $finished) {
+	// This player's games without dailies, newest first: unfinished ones with the board's progress, linking to the game;
+	// the last 25 finished sorting games with mistakes and no feedback yet with their score, linking to the feedback view
+	if ($_SESSION['user_id']) foreach ([['Unfinished games', 'g.finished_at is null', 'game'],
+		['Add feedback to finished games', "g.finished_at is not null and g.mode = 'sorting' and p.mistakes > 0 and not exists (select 1 from feedback f where f.seed = g.seed and f.user_id = p.user_id)", 'feedback']] as [$label, $where, $go]) {
 ?>
-<details<?php echo $finished == 'null' ? ' open' : '' ?>><summary><?php echo $label ?> games</summary>
+<details<?php echo $go == 'game' ? ' open' : '' ?>><summary><?php echo $label ?></summary>
 <?php foreach ($mysql->execute_query("select g.seed, date_format(g.created_at, '%d.%m.%Y %H:%i') created, g.size, g.language, g.board, p.score - p.mistakes total from game g join player p on p.seed = g.seed and p.user_id = ?
-		where (g.multiplayer or g.created_by = p.user_id) and g.seed not like '____-__-__-%' and g.finished_at is $finished order by g.created_at desc" . ($finished == 'null' ? '' : ' limit 25'), [$_SESSION['user_id']]) as $g) { ?>
-	<a class="game" href="?go=game&amp;seed=<?php echo $g['seed'] ?>"><span><?php echo $g['created'] ?></span><span><?php echo "$g[size]×$g[size]" ?></span><span><?php echo $g['language'] ?></span><span><?php echo $finished == 'null' ? ($g['size'] < 2 ? 100 : floor(100 * count(array_diff(json_decode($g['board']), [-1])) / ($g['size'] * ($g['size'] - 1)))) . '%' : $g['total'] ?></span></a>
+		where (g.multiplayer or g.created_by = p.user_id) and g.seed not like '____-__-__-%' and $where order by g.created_at desc" . ($go == 'game' ? '' : ' limit 25'), [$_SESSION['user_id']]) as $g) { ?>
+	<a class="game" href="?go=<?php echo $go ?>&amp;seed=<?php echo $g['seed'] ?>"><span><?php echo $g['created'] ?></span><span><?php echo "$g[size]×$g[size]" ?></span><span><?php echo $g['language'] ?></span><span><?php echo $go == 'game' ? ($g['size'] < 2 ? 100 : floor(100 * count(array_diff(json_decode($g['board']), [-1])) / ($g['size'] * ($g['size'] - 1)))) . '%' : $g['total'] ?></span></a>
 <?php } ?>
 </details>
 <?php } ?>
