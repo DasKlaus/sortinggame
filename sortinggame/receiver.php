@@ -75,11 +75,14 @@ switch ($_POST['action'])
 			// Only non-obscure memberships count. A category that holds two board words holds just the two of a link; categories of 100 items or more are too general to matter, unless they are a link.
 			// The cycle starts with a pair category's two words. Small categories (under 5 items) are mostly tried first, and for a big link, half the time the words that are in a small category.
 			// A search gives up after 2000 steps and restarts at another pair: the first 20 searches need 60% small links, the next 20 half, after 60 the chain gets one word shorter.
-			$name = $group = $of = $link = $count = $smallWord = [];
+			// Words are compared ignoring case, and no word is the join of a compound link ("Stadt" with "…stadt").
+			$name = $join = $group = $of = $link = $count = $smallWord = [];
 			foreach ($mysql->execute_query("select c.id, c.name, c.type, c.parent_id, c.playable, m.item from membership m join category c on c.id = m.category_id where c.language = ? and not m.obscure", [$_POST['language']]) as $r)
 			{
 				$name[$r['id']] = $r['name'];
-				$group[$r['id']] = $r['parent_id'] ?? 'c' . $r['id']; // categories without a parent are a group of their own
+				$join[$r['id']] = $r['type'] == 'compound' ? mb_strtolower(str_replace('…', '', $r['name'])) : '';
+				// Categories without a parent are a group of their own, compounds a group per join ("Stadt…" and "…stadt")
+				$group[$r['id']] = $r['parent_id'] ?? ($join[$r['id']] !== '' ? 'j' . $join[$r['id']] : 'c' . $r['id']);
 				$of[$r['item']][$r['id']] = true;
 				$count[$r['id']] = ($count[$r['id']] ?? 0) + 1;
 				if ($r['playable'] and in_array($r['type'], $_POST['types'])) $link[$r['id']][] = $r['item'];
@@ -93,14 +96,14 @@ switch ($_POST['action'])
 				$prev = json_decode($r['items']);
 				foreach ($prev as [$w, $cn, $next]) $blocked[$cn][$w] = $blocked[$cn][$prev[$next][0]] = true;
 			}
-			$pairs = array_keys(array_filter($link, fn($ws, $c) => count($ws) == 2 && !isset($blocked[$name[$c]][$ws[0]]) && !isset($blocked[$name[$c]][$ws[1]]), ARRAY_FILTER_USE_BOTH));
-			$search = function() use (&$search, &$path, &$on, &$in, &$taken, &$picked, &$steps, &$n, &$big, &$maxBig, &$close, $of, $link, $group, $count, $small, $smallWord, $name, $blocked)
+			$pairs = array_keys(array_filter($link, fn($ws, $c) => count($ws) == 2 && mb_strtolower($ws[0]) != mb_strtolower($ws[1]) && !isset($blocked[$name[$c]][$ws[0]]) && !isset($blocked[$name[$c]][$ws[1]]), ARRAY_FILTER_USE_BOTH));
+			$search = function() use (&$search, &$path, &$on, &$in, &$taken, &$picked, &$steps, &$n, &$big, &$maxBig, &$close, $of, $link, $join, $group, $count, $small, $smallWord, $name, $blocked)
 			{
 				if (++$steps > 2000) return false;
 				$x = end($path);
 				$last = count($path) == $n - 1;
 				$order = [];
-				foreach ($of[$x] as $c => $_) if (isset($link[$c]) && !isset($taken[$group[$c]]) && !isset($blocked[$name[$c]][$x]) && ($small[$c] || $big < $maxBig)) $order[$c] = mt_rand() * ($small[$c] ? 12 : 1);
+				foreach ($of[$x] as $c => $_) if (isset($link[$c]) && !isset($taken[$group[$c]]) && !isset($on[$join[$c]]) && !isset($blocked[$name[$c]][$x]) && ($small[$c] || $big < $maxBig)) $order[$c] = mt_rand() * ($small[$c] ? 12 : 1);
 				arsort($order);
 				foreach ($order as $c => $_)
 				{
@@ -110,13 +113,13 @@ switch ($_POST['action'])
 					foreach ($ys as $y)
 					{
 						// The last word needs a link back to the first one
-						if (isset($on[$y]) || isset($blocked[$name[$c]][$y]) || $last && !isset($close[$y])) continue;
+						if (isset($on[mb_strtolower($y)]) || isset($taken['j' . mb_strtolower($y)]) || isset($blocked[$name[$c]][$y]) || $last && !isset($close[$y])) continue;
 						// y may share a category with x, or with the first word when it is the last one, but with no other board word; a big link category holds no other board word at all
 						foreach ($of[$y] as $d => $_) if (!empty($in[$d]) && $in[$d] !== [$x] && !($last && $in[$d] === [$path[0]])) continue 2;
 						if ($count[$c] >= 100) foreach ($path as $p) if ($p !== $x && isset($of[$p][$c])) continue 2;
 						$taken[$group[$c]] = true;
 						$path[] = $y;
-						$on[$y] = true;
+						$on[mb_strtolower($y)] = true;
 						$picked[] = $c;
 						$big += !$small[$c];
 						if ($count[$c] >= 100) $in[$c] = [$x];
@@ -125,7 +128,7 @@ switch ($_POST['action'])
 						{
 							if ($search()) return true;
 						}
-						else foreach ($of[$y] as $d => $_) if (isset($link[$d]) && !isset($taken[$group[$d]]) && ($small[$d] || $big < $maxBig) && isset($of[$path[0]][$d]) && !isset($blocked[$name[$d]][$y]) && !isset($blocked[$name[$d]][$path[0]]))
+						else foreach ($of[$y] as $d => $_) if (isset($link[$d]) && !isset($taken[$group[$d]]) && !isset($on[$join[$d]]) && ($small[$d] || $big < $maxBig) && isset($of[$path[0]][$d]) && !isset($blocked[$name[$d]][$y]) && !isset($blocked[$name[$d]][$path[0]]))
 						{
 							if ($count[$d] >= 100) foreach ($path as $p) if ($p !== $y && $p !== $path[0] && isset($of[$p][$d])) continue 2;
 							$picked[] = $d;
@@ -134,7 +137,7 @@ switch ($_POST['action'])
 						foreach ($of[$y] as $d => $_) if ($count[$d] < 100 || isset($in[$d])) array_pop($in[$d]);
 						if ($count[$c] >= 100) unset($in[$c]);
 						$big -= !$small[$c];
-						unset($taken[$group[$c]], $on[$y]);
+						unset($taken[$group[$c]], $on[mb_strtolower($y)]);
 						array_pop($path);
 						array_pop($picked);
 					}
@@ -145,7 +148,7 @@ switch ($_POST['action'])
 			{
 				$maxBig = [intdiv(2 * $n, 5), intdiv($n, 2), $n][intdiv($try, 20)];
 				$c = $pairs[array_rand($pairs)];
-				[$path, $on, $in, $taken, $picked, $steps, $big, $close] = [$link[$c], array_fill_keys($link[$c], true), [], [$group[$c] => true], [$c], 0, 0, []];
+				[$path, $on, $in, $taken, $picked, $steps, $big, $close] = [$link[$c], array_fill_keys(array_map('mb_strtolower', $link[$c]), true),[], [$group[$c] => true], [$c], 0, 0, []];
 				foreach ($path as $p) foreach ($of[$p] as $d => $_) if ($count[$d] < 100) $in[$d][] = $p;
 				foreach ($of[$path[0]] as $d => $_) if (isset($link[$d])) foreach ($link[$d] as $y) $close[$y] = true;
 				if ($search()) break 2;
@@ -160,22 +163,24 @@ switch ($_POST['action'])
 		}
 		else
 		{
-			// Picks size playable categories of the selected types, no two with the same parent, each keeping size items that are in no other picked category
+			// Picks size playable categories of the selected types, no two with the same parent or compound join ("Stadt…" and "…stadt"),
+			// each keeping size items that are in no other picked category and are no picked compound's join ("Stadt" with "…stadt"), all ignoring case
 			$cats = [];
-			foreach ($mysql->execute_query("select c.id, c.name, c.parent_id, m.item, m.obscure from membership m join category c on c.id = m.category_id where c.language = ? and c.playable and find_in_set(c.type, ?)", [$_POST['language'], implode(',', $_POST['types'])]) as $r)
+			foreach ($mysql->execute_query("select c.id, c.name, c.type, c.parent_id, m.item, m.obscure from membership m join category c on c.id = m.category_id where c.language = ? and c.playable and find_in_set(c.type, ?)", [$_POST['language'], implode(',', $_POST['types'])]) as $r)
 			{
-				$cats[$r['id']] ??= ['name' => $r['name'], 'parent' => $r['parent_id'], 'all' => [], 'items' => []];
-				$cats[$r['id']]['all'][$r['item']] = true;
-				if (!$r['obscure']) $cats[$r['id']]['items'][] = $r['item'];
+				$join = $r['type'] == 'compound' ? mb_strtolower(str_replace('…', '', $r['name'])) : '';
+				$cats[$r['id']] ??= ['name' => $r['name'], 'join' => $join, 'group' => $r['parent_id'] ?? ($join !== '' ? "j$join" : null), 'all' => [], 'items' => []];
+				$cats[$r['id']]['all'][mb_strtolower($r['item'])] = true;
+				if (!$r['obscure']) $cats[$r['id']]['items'][mb_strtolower($r['item'])] = $r['item'];
 			}
-			$exclusive = fn($a, $picks) => array_filter($cats[$a]['items'], fn($w) => !array_filter($picks, fn($b) => $b != $a && isset($cats[$b]['all'][$w])));
+			$exclusive = fn($a, $picks) => array_filter($cats[$a]['items'], fn($l) => !array_filter($picks, fn($b) => $b != $a && isset($cats[$b]['all'][$l]) || $cats[$b]['join'] === $l), ARRAY_FILTER_USE_KEY);
 			$ids = array_keys($cats);
 			shuffle($ids);
 			$chosen = [];
 			foreach ($ids as $c)
 			{
 				if (count($chosen) == $size) break;
-				if ($cats[$c]['parent'] !== null && in_array($cats[$c]['parent'], array_map(fn($b) => $cats[$b]['parent'], $chosen))) continue;
+				if ($cats[$c]['group'] !== null && in_array($cats[$c]['group'], array_map(fn($b) => $cats[$b]['group'], $chosen))) continue;
 				$trial = [...$chosen, $c];
 				foreach ($trial as $a) if (count($exclusive($a, $trial)) < $size) continue 2;
 				$chosen = $trial;
