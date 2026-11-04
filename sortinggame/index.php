@@ -34,7 +34,7 @@ if ($go == 'daily')
 	<link rel="icon" href="favicon.svg">
 </head>
 <body>
-<nav><a href="?go=profile">Profile<?php if ($_SESSION['user_id']) echo ': '.htmlspecialchars($_SESSION['display_name'] ?: 'Guest', ENT_QUOTES, 'UTF-8'); ?></a><?php if ($_SESSION['user_id']) echo '<a href="?go=achievements">Achievements</a>'; ?><a href="?go=game">Play</a><a href="?go=instructions">Instructions</a><a href="?go=impressum">Site notice</a></nav>
+<nav><a href="?go=profile">Profile<?php if ($_SESSION['user_id']) echo ': '.htmlspecialchars($_SESSION['display_name'] ?: 'Guest', ENT_QUOTES, 'UTF-8'); ?></a><?php if ($_SESSION['user_id']) echo '<a href="?go=achievements">Achievements</a>'; ?><a href="?go=game">Play</a><a href="?go=impressum">Site notice</a></nav>
 
 <?php
 identityMessage('en');
@@ -48,13 +48,12 @@ elseif ($go == 'achievements') {
 	showAchievements('en', 'sortinggame');
 	confirmAllAchievements();
 }
-elseif ($go == 'instructions') echo '<h2>to be done</h2>';
 elseif ($go == 'impressum') {
 	echo '<h2>Code</h2><p><b>Thomas Colthurst</b> created the <a href="https://thomaswc.com/2025.html">original</a>.<br>' .
 		 '<b>Victoria Roberts</b> adapted <a href="https://victoria.danclan.com/the-sorting-game.html">the version</a> this one is copied from.<br>' .
 		 '<b>I</b> made this largely vibecoded version, the code is available on <a href="https://github.com/DasKlaus/sortinggame">github</a>.<br>' . 
 		 'The game is released under a <a href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Share Alike with Attribution License</a>.</p>';
-	echo '<h2>Categories</h2>The categories are all new and mainly derived from <a href="https://www.wiktionary.org/">Wiktionary</a>, extracted by <a href="https://kaikki.org/">kaikki.org</a>, parsed and curated by Claude. They are therefore dominated by wordplay and thematic sets.';
+	echo '<h2>Categories</h2><p>The categories are all new and mainly derived from <a href="https://www.wiktionary.org/">Wiktionary</a> (extracted by <a href="https://kaikki.org/">kaikki.org</a>), alongside Wiktionary, Wikidata, CMU Pronouncing Dictionary, WordNet and more, parsed and curated by Claude. They are therefore dominated by wordplay and thematic sets.</p>';
 	require_once("../legal.php");
 	legalNotice('en');
 }
