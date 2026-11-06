@@ -58,7 +58,7 @@ $data = [
 ?>
 <div id="feedback">
 <h2>Improve the categories <button type="button" onclick="location = '?go=game&seed=' + data.seed">Back to the game</button></h2>
-<small>Answers are saved for review; nothing on the board changes. <i>Obscure</i>: correct but obscure <i>or</i> easy to misattribute: that category never uses it, but the two never share a board.</small>
+<small>Answers are saved for review; nothing on the board changes. <i>Obscure</i>: correct but obscure <i>or</i> you don't know it. <i>Wrong</i>Incorrect, <i>or</i> incorrect and easy to misattribute: that category never uses it, but the two never share a board.</small>
 <div id="columns" class="columns"></div>
 <details<?php echo $mixups ? '' : ' open' ?>><summary>Anything else</summary>
 <small>For what your mistakes didn't catch. Tap a word to fix its spelling or memberships.</small>

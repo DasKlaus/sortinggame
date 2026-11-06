@@ -1,6 +1,7 @@
 DROP TABLE IF EXISTS `player`;
 DROP TABLE IF EXISTS `game`;
 DROP TABLE IF EXISTS `membership`;
+DROP TABLE IF EXISTS `apart`;
 DROP TABLE IF EXISTS `category`;
 DROP TABLE IF EXISTS `attempt`;
 DROP TABLE IF EXISTS `feedback`;
@@ -9,8 +10,8 @@ CREATE TABLE `category` (
 	`id` int(10) NOT NULL AUTO_INCREMENT,
 	`language` varchar(10) NOT NULL,
 	`name` varchar(255) NOT NULL, -- "air…", "Rhymes with “know”"
-	`type` varchar(32) NOT NULL, -- compound, rhyme, anagram, meaning, origin, spelling, …
-	`parent_id` int(10) DEFAULT NULL, -- e.g. hypernym, collecting categories with considerable overlap: categories with the same parent never share a board
+	`type` varchar(32) NOT NULL, -- compound, rhyme, anagram, origin, root, …
+	`topic` varchar(64) NOT NULL, -- what knowledge it takes, players set a difficulty per topic: "Nature", "Wordplay", …
 	`playable` tinyint(1) NOT NULL DEFAULT 1, -- 0: never picked, only rules boards out ("Also a surname")
 	PRIMARY KEY (`id`),
 	KEY (`language`)
@@ -19,9 +20,16 @@ CREATE TABLE `category` (
 CREATE TABLE `membership` (
 	`category_id` int(10) NOT NULL,
 	`item` varchar(255) NOT NULL COLLATE utf8mb4_bin, -- case- and accent-sensitive: "Polish" ≠ "polish", "die" ≠ "Die"
-	`obscure` tinyint(1) NOT NULL DEFAULT 0, -- true, but not used as a link or group member; still rules boards out (the *connection* is obscure, not necessarily the item)
+	`level` tinyint(1) NOT NULL DEFAULT 1, -- 1 easy, 2 medium, 3 hard, 4 blocking: wrong but easily thought to belong ("creationism" in "Evolution"), or debatable;
+	                                       -- above the level set for the category's topic it's never used as a link or group member, but still rules boards out
 	PRIMARY KEY (`category_id`, `item`),
 	KEY (`item`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `apart` ( -- pairs of categories that never share a board: too much overlap, or easily confused
+	`a` int(10) NOT NULL, -- the lower category id
+	`b` int(10) NOT NULL,
+	PRIMARY KEY (`a`, `b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `game` (
@@ -29,6 +37,7 @@ CREATE TABLE `game` (
 	`language` varchar(10) NOT NULL,
 	`mode` varchar(8) NOT NULL, -- sorting or chain
 	`types` json NOT NULL, -- category types selected on creation: ["compound","rhyme"]
+	`levels` json DEFAULT NULL, -- per topic the level selected on creation, 0 for off: {"Nature":2,"Sport":0}; null for games before topics
 	`size` tinyint(3) NOT NULL, -- sorting: number of categories, and of words per category; chain: number of words
 	`items` json NOT NULL, -- the words in board order with their category, never sent to the client: [["port","air…"],...]; chain: with the category of the link to the next word in the cycle and its index: [["port","air…",7],...]
 	`board` json NOT NULL, -- per word index of items, the previous word in its cluster, -1 for a cluster's first word: [-1,0,-1,-1,2,...]; chain: per word whether its link to the next word is made: [false,true,...]

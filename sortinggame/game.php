@@ -1,7 +1,7 @@
 <?php
 if (isset($_GET["seed"])) {
 	$seed = $_GET["seed"];
-	[$multiplayer, $mode, $size, $language, $types] = $mysql->execute_query("select multiplayer, mode, size, language, types from game where seed = ? limit 1", [$seed])->fetch_row();
+	[$multiplayer, $mode, $size, $language, $types, $levels] = $mysql->execute_query("select multiplayer, mode, size, language, types, levels from game where seed = ? limit 1", [$seed])->fetch_row();
 	if ($multiplayer and !$_SESSION['user_id']) {
 		echo '<p>This is a multiplayer game. Pick a name to join in, or leave the field empty to play anonymously. If you have an authentication code, you can sign in with it.</p>';
 		identityForm('en');
@@ -9,7 +9,7 @@ if (isset($_GET["seed"])) {
 	}
 	identify();
 	// Every player of a single-player board gets their own game of it, with a fresh board
-	if (!$multiplayer) $mysql->execute_query("insert ignore into game (seed, language, mode, types, size, items, board, created_by, created_at) select seed, language, mode, types, size, items, ?, ?, now() from game where seed = ? limit 1", [json_encode($mode == 'chain' ? array_fill(0, $size, false) : array_fill(0, $size * $size, -1)), $_SESSION['user_id'], $seed]);
+	if (!$multiplayer) $mysql->execute_query("insert ignore into game (seed, language, mode, types, levels, size, items, board, created_by, created_at) select seed, language, mode, types, levels, size, items, ?, ?, now() from game where seed = ? limit 1", [json_encode($mode == 'chain' ? array_fill(0, $size, false) : array_fill(0, $size * $size, -1)), $_SESSION['user_id'], $seed]);
 	$mysql->execute_query("insert ignore into player (seed, user_id, display_name, layout) values (?, ?, ?, ?)", [$seed, $_SESSION['user_id'], $_SESSION['display_name'], $size >= 10 ? 'wrap' : 'grid']);
 	$state = $mysql->execute_query("select g.seed, g.mode, g.items, g.board, g.multiplayer, p.score, p.mistakes, p.layout, p.slots from game g join player p on p.seed = g.seed and p.user_id = ? where g.seed = ? and (g.multiplayer or g.created_by = ?)", [$_SESSION['user_id'], $seed, $_SESSION['user_id']])->fetch_assoc();
 	$items = json_decode($state['items']);
@@ -68,6 +68,10 @@ if (isset($_GET["seed"])) {
 <?php foreach (json_decode($types) as $type) { ?>
 	<input type="hidden" name="types[]" value="<?php echo htmlspecialchars($type) ?>">
 <?php } ?>
+<?php // games from before topics play again with every topic at medium
+	foreach (json_decode($levels ?? 'null', true) ?? array_fill_keys(array_column($mysql->query("select distinct topic from category")->fetch_all(), 0), 2) as $topic => $level) { ?>
+	<input type="hidden" name="levels[<?php echo htmlspecialchars($topic) ?>]" value="<?php echo $level ?>">
+<?php } ?>
 <?php if ($multiplayer) { ?>
 	<input type="hidden" name="multiplayer" value="1">
 <?php } ?>
@@ -112,6 +116,13 @@ else {
 <?php } ?>
 		</select>
 		<small>Ctrl-click to pick several</small>
+	</details>
+	<details><summary>Topics and difficulty</summary>
+		<div id="topics">
+<?php foreach ($mysql->query("select distinct topic from category order by topic")->fetch_all() as $i => [$topic]) { ?>
+			<label for="topic<?php echo $i ?>"><?php echo htmlspecialchars($topic) ?></label><select id="topic<?php echo $i ?>" name="levels[<?php echo htmlspecialchars($topic) ?>]"><option value="0">Off</option><option value="1">Easy</option><option value="2" selected>Medium</option><option value="3">Hard</option></select>
+<?php } ?>
+		</div>
 	</details>
 	<button type="submit">Generate</button>
 </form>

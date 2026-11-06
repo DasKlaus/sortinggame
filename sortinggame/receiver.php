@@ -6,7 +6,7 @@ $user = $_SESSION['user_id'];
 $daily = '/^\d{4}-\d\d-\d\d-/'; // a daily's seed is its date and language, e.g. 2026-10-24-de
 
 // Today's daily in a language is created by its first player, under a lock so two first players can't create two:
-// a chain of all category types, 9 items on weekdays, 16 on Saturdays, 25 on Sundays
+// a chain of all category types and topics at medium level, 9 items on weekdays, 16 on Saturdays, 25 on Sundays
 if (isset($_GET['daily']))
 {
 	$mysql->query("select get_lock('daily', 10)");
@@ -16,7 +16,8 @@ if (isset($_GET['daily']))
 		exit;
 	}
 	$_POST = ['action' => 'create', 'seed' => date('Y-m-d') . '-' . $_GET['daily'], 'language' => $_GET['daily'], 'mode' => 'chain', 'size' => [25, 9, 9, 9, 9, 9, 16][date('w')],
-		'types' => array_column($mysql->query("select distinct type from category")->fetch_all(), 0)];
+		'types' => array_column($mysql->query("select distinct type from category")->fetch_all(), 0),
+		'levels' => array_fill_keys(array_column($mysql->query("select distinct topic from category")->fetch_all(), 0), 2)];
 }
 // Polls of a multiplayer game: the board and the other players, unless nothing changed since the client's version
 elseif ($_SERVER['REQUEST_METHOD'] == 'GET')
@@ -69,23 +70,28 @@ switch ($_POST['action'])
 		identify();
 		$_POST['mode'] ??= 'sorting';
 		$size = (int)$_POST['size'];
+		$levels = array_map('intval', $_POST['levels']);
+		$apart = [];
+		foreach ($mysql->query("select a, b from apart")->fetch_all() as [$a, $b]) $apart[$a][$b] = $apart[$b][$a] = true;
 		if ($_POST['mode'] == 'chain')
 		{
-			// Randomized depth-first search for a cycle of size words, each linked to the next by a playable category of the selected types, no two with the same parent.
-			// Only non-obscure memberships count. A category that holds two board words holds just the two of a link; categories of 100 items or more are too general to matter, unless they are a link.
+			// Randomized depth-first search for a cycle of size words, each linked to the next by a playable category of the selected types and topics, no two apart.
+			// Only memberships below level 4 (blocking) count, and in a topic that's on, only those up to its level. A category that holds two board words holds just the two of a link; categories of 100 items or more are too general to matter, unless they are a link.
 			// The cycle starts with a pair category's two words. Small categories (under 5 items) are mostly tried first, and for a big link, half the time the words that are in a small category.
 			// A search gives up after 2000 steps and restarts at another pair: the first 20 searches need 60% small links, the next 20 half, after 60 the chain gets one word shorter.
 			// Words are compared ignoring case, and no word is the join of a compound link ("Stadt" with "…stadt").
 			$name = $join = $group = $of = $link = $count = $smallWord = [];
-			foreach ($mysql->execute_query("select c.id, c.name, c.type, c.parent_id, c.playable, m.item from membership m join category c on c.id = m.category_id where c.language = ? and not m.obscure", [$_POST['language']]) as $r)
+			foreach ($mysql->execute_query("select c.id, c.name, c.type, c.topic, c.playable, m.item, m.level from membership m join category c on c.id = m.category_id where c.language = ? and m.level < 4", [$_POST['language']]) as $r)
 			{
+				$level = $levels[$r['topic']] ?? 0;
+				if ($level and $r['level'] > $level) continue;
 				$name[$r['id']] = $r['name'];
 				$join[$r['id']] = $r['type'] == 'compound' ? mb_strtolower(str_replace('…', '', $r['name'])) : '';
-				// Categories without a parent are a group of their own, compounds a group per join ("Stadt…" and "…stadt")
-				$group[$r['id']] = $r['parent_id'] ?? ($join[$r['id']] !== '' ? 'j' . $join[$r['id']] : 'c' . $r['id']);
+				// Every category is a group of its own, compounds a group per join ("Stadt…" and "…stadt")
+				$group[$r['id']] = $join[$r['id']] !== '' ? 'j' . $join[$r['id']] : 'c' . $r['id'];
 				$of[$r['item']][$r['id']] = true;
 				$count[$r['id']] = ($count[$r['id']] ?? 0) + 1;
-				if ($r['playable'] and in_array($r['type'], $_POST['types'])) $link[$r['id']][] = $r['item'];
+				if ($r['playable'] and $level and in_array($r['type'], $_POST['types'])) $link[$r['id']][] = $r['item'];
 			}
 			$small = array_map(fn($k) => $k < 5, $count);
 			foreach ($link as $c => $ws) if ($small[$c]) foreach ($ws as $w) $smallWord[$w] = true;
@@ -97,13 +103,13 @@ switch ($_POST['action'])
 				foreach ($prev as [$w, $cn, $next]) $blocked[$cn][$w] = $blocked[$cn][$prev[$next][0]] = true;
 			}
 			$pairs = array_keys(array_filter($link, fn($ws, $c) => count($ws) == 2 && mb_strtolower($ws[0]) != mb_strtolower($ws[1]) && !isset($blocked[$name[$c]][$ws[0]]) && !isset($blocked[$name[$c]][$ws[1]]), ARRAY_FILTER_USE_BOTH));
-			$search = function() use (&$search, &$path, &$on, &$in, &$taken, &$picked, &$steps, &$n, &$big, &$maxBig, &$close, $of, $link, $join, $group, $count, $small, $smallWord, $name, $blocked)
+			$search = function() use (&$search, &$path, &$on, &$in, &$taken, &$picked, &$steps, &$n, &$big, &$maxBig, &$close, $of, $link, $join, $group, $count, $small, $smallWord, $name, $blocked, $apart)
 			{
 				if (++$steps > 2000) return false;
 				$x = end($path);
 				$last = count($path) == $n - 1;
 				$order = [];
-				foreach ($of[$x] as $c => $_) if (isset($link[$c]) && !isset($taken[$group[$c]]) && !isset($on[$join[$c]]) && !isset($blocked[$name[$c]][$x]) && ($small[$c] || $big < $maxBig)) $order[$c] = mt_rand() * ($small[$c] ? 12 : 1);
+				foreach ($of[$x] as $c => $_) if (isset($link[$c]) && !isset($taken[$group[$c]]) && !array_intersect_key($apart[$c] ?? [], array_flip($picked)) && !isset($on[$join[$c]]) && !isset($blocked[$name[$c]][$x]) && ($small[$c] || $big < $maxBig)) $order[$c] = mt_rand() * ($small[$c] ? 12 : 1);
 				arsort($order);
 				foreach ($order as $c => $_)
 				{
@@ -128,7 +134,7 @@ switch ($_POST['action'])
 						{
 							if ($search()) return true;
 						}
-						else foreach ($of[$y] as $d => $_) if (isset($link[$d]) && !isset($taken[$group[$d]]) && !isset($on[$join[$d]]) && ($small[$d] || $big < $maxBig) && isset($of[$path[0]][$d]) && !isset($blocked[$name[$d]][$y]) && !isset($blocked[$name[$d]][$path[0]]))
+						else foreach ($of[$y] as $d => $_) if (isset($link[$d]) && !isset($taken[$group[$d]]) && !array_intersect_key($apart[$d] ?? [], array_flip($picked)) && !isset($on[$join[$d]]) && ($small[$d] || $big < $maxBig) && isset($of[$path[0]][$d]) && !isset($blocked[$name[$d]][$y]) && !isset($blocked[$name[$d]][$path[0]]))
 						{
 							if ($count[$d] >= 100) foreach ($path as $p) if ($p !== $y && $p !== $path[0] && isset($of[$p][$d])) continue 2;
 							$picked[] = $d;
@@ -163,15 +169,18 @@ switch ($_POST['action'])
 		}
 		else
 		{
-			// Picks size playable categories of the selected types, no two with the same parent or compound join ("Stadt…" and "…stadt"),
-			// each keeping size items that are in no other picked category and are no picked compound's join ("Stadt" with "…stadt"), all ignoring case
+			// Picks size playable categories of the selected types and topics, no two apart or with the same compound join ("Stadt…" and "…stadt"),
+			// each keeping size items that are in no other picked category and are no picked compound's join ("Stadt" with "…stadt"), all ignoring case.
+			// Items above their topic's level are blocking.
 			$cats = [];
-			foreach ($mysql->execute_query("select c.id, c.name, c.type, c.parent_id, m.item, m.obscure from membership m join category c on c.id = m.category_id where c.language = ? and c.playable and find_in_set(c.type, ?)", [$_POST['language'], implode(',', $_POST['types'])]) as $r)
+			foreach ($mysql->execute_query("select c.id, c.name, c.type, c.topic, m.item, m.level from membership m join category c on c.id = m.category_id where c.language = ? and c.playable and find_in_set(c.type, ?)", [$_POST['language'], implode(',', $_POST['types'])]) as $r)
 			{
+				$level = $levels[$r['topic']] ?? 0;
+				if (!$level) continue;
 				$join = $r['type'] == 'compound' ? mb_strtolower(str_replace('…', '', $r['name'])) : '';
-				$cats[$r['id']] ??= ['name' => $r['name'], 'join' => $join, 'group' => $r['parent_id'] ?? ($join !== '' ? "j$join" : null), 'all' => [], 'items' => []];
+				$cats[$r['id']] ??= ['name' => $r['name'], 'join' => $join, 'group' => $join !== '' ? "j$join" : null, 'all' => [], 'items' => []];
 				$cats[$r['id']]['all'][mb_strtolower($r['item'])] = true;
-				if (!$r['obscure']) $cats[$r['id']]['items'][mb_strtolower($r['item'])] = $r['item'];
+				if ($r['level'] <= $level) $cats[$r['id']]['items'][mb_strtolower($r['item'])] = $r['item'];
 			}
 			$exclusive = fn($a, $picks) => array_filter($cats[$a]['items'], fn($l) => !array_filter($picks, fn($b) => $b != $a && isset($cats[$b]['all'][$l]) || $cats[$b]['join'] === $l), ARRAY_FILTER_USE_KEY);
 			$ids = array_keys($cats);
@@ -181,6 +190,7 @@ switch ($_POST['action'])
 			{
 				if (count($chosen) == $size) break;
 				if ($cats[$c]['group'] !== null && in_array($cats[$c]['group'], array_map(fn($b) => $cats[$b]['group'], $chosen))) continue;
+				if (array_intersect_key($apart[$c] ?? [], array_flip($chosen))) continue;
 				$trial = [...$chosen, $c];
 				foreach ($trial as $a) if (count($exclusive($a, $trial)) < $size) continue 2;
 				$chosen = $trial;
@@ -196,7 +206,7 @@ switch ($_POST['action'])
 			shuffle($items);
 			$board = array_fill(0, $n * $n, -1);
 		}
-		$mysql->execute_query("insert into game (seed, language, mode, types, size, items, board, multiplayer, created_by, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, now())", [$seed, $_POST['language'], $_POST['mode'], json_encode($_POST['types']), $n, json_encode($items, JSON_UNESCAPED_UNICODE), json_encode($board), (int)isset($_POST['multiplayer']), $_SESSION['user_id']]);
+		$mysql->execute_query("insert into game (seed, language, mode, types, levels, size, items, board, multiplayer, created_by, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())", [$seed, $_POST['language'], $_POST['mode'], json_encode($_POST['types']), json_encode($levels, JSON_UNESCAPED_UNICODE), $n, json_encode($items, JSON_UNESCAPED_UNICODE), json_encode($board), (int)isset($_POST['multiplayer']), $_SESSION['user_id']]);
 		header('Location: ./?go=' . (isset($_GET['daily']) ? "daily&lang=$_GET[daily]" : "game&seed=$seed"));
 		break;
 	// Sorting: b's cluster is appended to a's: b's first word gets a's last one as previous; answers with the category's name when its cluster is complete.
