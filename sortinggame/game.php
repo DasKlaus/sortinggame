@@ -103,24 +103,30 @@ else {
 </details>
 <?php } ?>
 <h3>New game</h3>
+<?php
+	// The form starts with the settings of the last game this player created, not counting dailies or copies of others' single-player boards; topics without a level are medium
+	$last = $mysql->execute_query("select size, language, multiplayer, types, levels from game g where created_by = ? and seed not like '____-__-__-%'
+		and not exists (select 1 from game o where o.seed = g.seed and o.created_at < g.created_at) order by created_at desc limit 1", [$_SESSION['user_id']])->fetch_assoc();
+	$lastTypes = json_decode($last['types'] ?? 'null');
+	$lastLevels = json_decode($last['levels'] ?? 'null', true);
+?>
 <form id="buttons" method="post" action="receiver.php">
 	<input type="hidden" name="action" value="create">
-	<label for="size">Size: </label><select id="size" name="size"><option value="5">5x5</option><option value="10">10x10</option><option value="15">15x15</option><option value="20">20x20</option><option value="25">25x25</option></select>
-	<label for="lang">Language: </label><select id="lang" name="language"><option value="en">en</option><option value="de">de</option></select>
-	<label><input type="checkbox" name="multiplayer" value="1">Multiplayer</label>
-<?php $types = $mysql->query("select distinct type from category order by type")->fetch_all(); ?>
+	<label for="size">Size: </label><select id="size" name="size"><?php foreach ([5, 10, 15, 20, 25] as $n) echo "<option value=\"$n\"" . ($n == ($last['size'] ?? 5) ? ' selected' : '') . ">{$n}x$n</option>" ?></select>
+	<label for="lang">Language: </label><select id="lang" name="language"><?php foreach (['en', 'de'] as $l) echo "<option value=\"$l\"" . ($l == ($last['language'] ?? 'en') ? ' selected' : '') . ">$l</option>" ?></select>
+	<label><input type="checkbox" name="multiplayer" value="1"<?php echo ($last['multiplayer'] ?? 0) ? ' checked' : '' ?>>Multiplayer</label>
 	<details><summary>Restrict game categories</summary>
-		<select id="types" name="types[]" multiple size="<?php echo count($types) ?>">
-<?php foreach ($types as [$type]) { ?>
-			<option value="<?php echo $type ?>" selected><?php echo $type ?></option>
+		<div id="types">
+<?php foreach ($mysql->query("select distinct type from category order by type")->fetch_all() as [$type]) { $on = !$lastTypes || in_array($type, $lastTypes); ?>
+			<button type="button"<?php echo $on ? ' class="on"' : '' ?> onclick="this.firstChild.disabled = !this.classList.toggle('on')"><input type="hidden" name="types[]" value="<?php echo htmlspecialchars($type) ?>"<?php echo $on ? '' : ' disabled' ?>><?php echo htmlspecialchars($type) ?></button>
 <?php } ?>
-		</select>
-		<small>Ctrl-click to pick several</small>
+		</div>
 	</details>
 	<details><summary>Topics and difficulty</summary>
+		<div id="levels">Click to change difficulty: <span data-level="0">disabled</span> <span data-level="1">easy</span> <span data-level="2">medium</span> <span data-level="3" style="--hue: 200">hard</span></div>
 		<div id="topics">
-<?php foreach ($mysql->query("select distinct topic from category order by topic")->fetch_all() as $i => [$topic]) { ?>
-			<label for="topic<?php echo $i ?>"><?php echo htmlspecialchars($topic) ?></label><select id="topic<?php echo $i ?>" name="levels[<?php echo htmlspecialchars($topic) ?>]"><option value="0">Off</option><option value="1">Easy</option><option value="2" selected>Medium</option><option value="3">Hard</option></select>
+<?php foreach ($mysql->query("select distinct topic from category order by topic")->fetch_all() as [$topic]) { $level = $lastLevels[$topic] ?? 2; ?>
+			<button type="button" data-level="<?php echo $level ?>" style="--hue: <?php echo crc32($topic) % 360 ?>" onclick="this.dataset.level = this.firstChild.value = (+this.firstChild.value + 1) % 4"><input type="hidden" name="levels[<?php echo htmlspecialchars($topic) ?>]" value="<?php echo $level ?>"><?php echo htmlspecialchars($topic) ?></button>
 <?php } ?>
 		</div>
 	</details>

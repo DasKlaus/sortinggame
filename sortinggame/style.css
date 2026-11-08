@@ -16,17 +16,17 @@ form div {display: inline;}
 h1 {font-size: 8vw; font-family: Cambria, Georgia, serif; margin: .3em 0 0 0;}
 h1 span {margin: 0 0.2em;}
 button {font-family: Georgia, serif; font-size: 18px; box-sizing: border-box; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 2px;}
-#board button {overflow-wrap: anywhere; position: relative; line-height: 1.5em; max-height: calc(var(--lines, 4) * 1.5em); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--lines, 4);}
+#board button, #types button, #topics button {overflow-wrap: anywhere; position: relative; line-height: 1.5em; max-height: calc(var(--lines, 4) * 1.5em); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--lines, 4);}
 button:hover {background: var(--hover);}
 #board.start button {width: min(10em, (100vw - 2 * min(30px, 3vw) - (var(--n) - 1) * 2px) / var(--n)); height: 5em; overflow-wrap: anywhere;}
 /* Clusters darken (lighten in dark mode) as they fill up: --fill is their share of a complete cluster */
-.cluster, .achievements .unseen {font-weight: bold; background: color-mix(in srgb, var(--fg) calc(var(--fill) * 40%), var(--bg));}
+.cluster, .achievements .unseen, #buttons [data-level="1"] {font-weight: bold; background: color-mix(in srgb, var(--fg) calc(var(--fill) * 40%), var(--bg));}
 .cluster .size, .achievements [class^=level] {position: absolute; right: 0; bottom: 0; background: var(--fg); color: var(--bg); padding: 0 8px 3px 8px; line-height: 1em;}
 /* Achievements on the profile look like the board's buttons in wrap mode with 10 lines, unseen ones like a half complete cluster */
 .achievements {list-style: none; max-width: 1000px; margin: 1em auto; padding: min(30px, 3vw); display: grid; gap: 2px; grid-auto-rows: 1fr; grid-template-columns: repeat(auto-fill, minmax(8em, 1fr)); justify-items: center;}
 .achievements li {width: 100%; max-width: 14em; box-sizing: border-box; padding: 1px 6px; border: 1px solid var(--border); border-radius: 2px; overflow-wrap: anywhere; position: relative; line-height: 1.5em; min-height: calc(3em + 4px); display: flex; align-items: center; justify-content: center;}
 .achievements li > :last-child {overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 10;}
-.achievements .unseen {--fill: .5;}
+.achievements .unseen, #buttons [data-level="1"] {--fill: 1;}
 .achievements img {position: absolute; left: 0; bottom: 0; height: 1em; padding: 0 4px 3px 4px;}
 
 .shake {animation: shake 0.5s; animation-iteration-count: 1;}
@@ -66,20 +66,24 @@ button:hover {background: var(--hover);}
 #buttons summary {cursor: pointer;}
 #buttons small {color: var(--muted);}
 #buttons select {justify-self: start; font: inherit; padding: .2em .4em; border: 1px solid var(--border); border-radius: 2px; background: var(--bg); color: var(--fg);}
-#types {overflow: hidden; display: block; width: 100%; margin-top: .4em;}
-#topics {display: grid; grid-template-columns: 1fr auto; gap: .3em 1em; align-items: center; margin-top: .4em;}
-#topics label {text-align: left;}
-#types option:checked {background: var(--fg) linear-gradient(var(--fg), var(--fg)); color: var(--bg); -webkit-text-fill-color: var(--bg);}
+/* Types and topics are buttons as on the board in wrap mode, two lines high; types that are on look selected,
+   topics like a cluster by their level: unclustered when off, half finished when easy, selected when medium, finished when hard */
+#types, #topics {--lines: 2; margin-top: .4em;}
+#types .on, #buttons [data-level="2"] {filter: invert(100%);}
+#buttons [data-level="3"] {font-weight: bold; background: hsl(var(--hue) 70% 85%); color: #000;}
+#levels {margin-top: .4em;}
+#levels span {display: inline-block; padding: 0 6px; border: 1px solid var(--border); border-radius: 2px; background: var(--bg);}
 #buttons button[type=submit] {grid-column: 1 / -1; justify-self: center; padding: .3em 2em; background: var(--fg); color: var(--bg);}
 #buttons button[type=submit]:hover {background: var(--muted);}
-#board {padding: min(30px, 3vw); display: grid; gap: 2px; grid-auto-rows: 1fr;}
+#board {padding: min(30px, 3vw);}
+#board, #types, #topics {display: grid; gap: 2px; grid-auto-rows: 1fr;}
 #board.grid {display: inline-grid; grid-template-columns: repeat(var(--n), 1fr);}
 /* A game's grid fills the space below the navs, so small games fill the screen */
 body:has(#board.grid:not(.start)) {display: flex; flex-direction: column; min-height: 100dvh;}
 #board.grid {flex-grow: 1; min-width: min-content;}
-#board.wrap {grid-template-columns: repeat(auto-fill, minmax(8em, 1fr)); justify-items: center;}
-#board.wrap button {width: 100%; max-width: 14em;}
-#board.grid button, #board.wrap button {min-height: calc(min(2, var(--lines, 4)) * 1.5em + 4px);}
+#board.wrap, #types, #topics {grid-template-columns: repeat(auto-fill, minmax(8em, 1fr)); justify-items: center;}
+#board.wrap button, #types button, #topics button {width: 100%; max-width: 14em;}
+#board.grid button, #board.wrap button, #types button, #topics button {min-height: calc(min(2, var(--lines, 4)) * 1.5em + 4px);}
 #board.tight {display: flex; flex-wrap: wrap;}
 #board.tight button {display: block; white-space: nowrap; text-overflow: ellipsis; max-width: 18em;}
 .gone {visibility: hidden;}
