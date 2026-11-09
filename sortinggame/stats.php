@@ -1,6 +1,9 @@
 <?php
-// Statistics of all sorting games: the raw tables go to the page, which replays each game's attempt log and computes everything
+// Statistics of all sorting games: the raw tables go to the page, which replays each game's attempt log and computes everything.
+// Only user 1 sees the curation and players tabs; everyone else gets the general tab, with numbers in place of seeds and players and no names.
 require_once "config.php";
+require_once "../identity.php";
+$admin = $_SESSION['user_id'] == 1;
 
 $catIndex = $cats = $games = [];
 foreach ($mysql->query("select seed, created_by, language, types, levels, size, items, multiplayer, unix_timestamp(created_at) c, unix_timestamp(finished_at) f from game where mode = 'sorting' order by created_at") as $g)
@@ -20,6 +23,18 @@ foreach ($mysql->query("select a.seed, g.created_by, a.user_id, a.a, a.b, a.succ
 foreach ($mysql->query("select language, name, min(type) from category group by language, name")->fetch_all() as [$lang, $name, $type])
 	if (isset($catIndex["$lang|$name"])) $cats[$catIndex["$lang|$name"]][2] = $type;
 $names = array_column($mysql->query("select user_id, display_name from player")->fetch_all(), 1, 0);
+if (!$admin)
+{
+	$seeds = $users = $names = [];
+	foreach ($games as &$g)
+	{
+		$g['seed'] = 'g' . ($seeds[$g['seed']] ??= count($seeds) + 1);
+		$g['by'] = $users[$g['by']] ??= count($users) + 1;
+		foreach ($g['att'] as &$r) $r[4] = $users[$r[4]] ??= count($users) + 1;
+		unset($r);
+	}
+	unset($g);
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -62,10 +77,11 @@ figure { margin: 0; }
 <main>
 <h1>Sorting Game Stats</h1>
 <p class="note" id="summary"></p>
-<nav><button data-tab="general">General</button><button data-tab="curation">Curation</button><button data-tab="players">Players</button></nav>
+<nav><button data-tab="general">General</button><?php if ($admin) echo '<button data-tab="curation">Curation</button><button data-tab="players">Players</button>'; ?></nav>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.17/dist/plot.umd.min.js"></script>
+<script src="replay.js"></script>
 <script>
 const {games, cats, names} = <?php echo json_encode(['games' => array_values($games), 'cats' => $cats, 'names' => $names], JSON_UNESCAPED_UNICODE); ?>;
 
@@ -102,50 +118,15 @@ function ranked(rows, {key, value, label, top = 25, desc = false, min = 3, domai
 			Plot.tickX(groups, {x: 'm', y: 'k', stroke: INK, strokeWidth: 2, tip: true, title: d => `${d.k}\nmean ${d.m.toFixed(2)} over ${d.v.length} games`})]});
 }
 
-// Replay of every game: cluster heads and sizes at each attempt, per category its clusters and merges, and the guessing onset
-const atts = [], occs = [], now = Date.now() / 1000;
+// Replay of every game (replay.js), then per game its player's name, and per category occurrence the median progress of its merges and its completion rank
+const atts = replay(games), occs = [], now = Date.now() / 1000;
 for (const g of games) {
-	const n = g.n, N = n * n, cat = g.items.map(x => x[1]);
-	const head = d3.range(N), members = head.map(i => [i]), last = {};
-	const oc = new Map([...new Set(cat)].map(c => [c, {g, c, k: n, big: 0, maxPar: 0, merges: [], fails: 0, disc: null, done: null}]));
-	let within = n * n * (n - 1) / 2, K = N, succ = 0, fails = 0;
-	g.M = N - n; g.fin = g.finished != null; g.trace = []; g.cum = [0];
-	g.att.forEach(([a0, b0, s, t, u], i) => {
-		const a = head[a0], b = head[b0], ca = cat[a], cb = cat[b], sa = members[a].length, sb = members[b].length;
-		const r = {g, i, s, t, u, a, b, ca, cb, sa, sb, prog: succ / g.M, p: within / (K * (K - 1) / 2), dt: last[u] == null ? null : t - last[u]};
-		last[u] = t;
-		if (s) {
-			const o = oc.get(ca);
-			if (o.disc == null) o.disc = i;
-			o.big += sa == 1 && sb == 1 ? 1 : sa > 1 && sb > 1 ? -1 : 0;
-			o.maxPar = Math.max(o.maxPar, o.big);
-			o.merges.push(succ / g.M);
-			within -= o.k - 1; o.k--; K--;
-			for (const m of members[b]) head[m] = a;
-			members[a] = members[a].concat(members[b]);
-			succ++;
-			if (o.k == 1) o.done = succ;
-			g.cum.push(fails);
-		} else {
-			fails++; oc.get(ca).fails++; oc.get(cb).fails++;
-		}
-		g.trace.push(r); atts.push(r);
-	});
-	g.succ = succ; g.fails = fails; g.oc = [...oc.values()];
-	g.lastT = g.att.length ? g.att.at(-1)[3] : g.created;
 	g.name = g.mp ? 'multiplayer' : names[g.by] || `player ${g.by}`;
-	// Guessing onset: the first stretch of 10 attempts whose success rate is at most twice that of random pairs
-	g.onset = null;
-	for (let i = 9; i < g.trace.length && g.onset == null; i++) {
-		const w = g.trace.slice(i - 9, i + 1);
-		if (d3.sum(w, r => r.s) / 10 <= 2 * d3.mean(w, r => r.p)) g.onset = i - 9;
-	}
-	g.onsetProg = g.onset == null ? null : g.trace[g.onset].prog;
 	for (const o of g.oc) {
 		o.bulk = d3.median(o.merges);
 		occs.push(o);
 	}
-	if (g.fin) [...g.oc].sort((x, y) => x.done - y.done).forEach((o, i) => o.rank = i / (n - 1));
+	if (g.fin) [...g.oc].sort((x, y) => x.done - y.done).forEach((o, i) => o.rank = i / (g.n - 1));
 }
 const fin = games.filter(g => g.fin), solo = games.filter(g => !g.mp), finOccs = occs.filter(o => o.g.fin);
 document.getElementById('summary').textContent = `${games.length} sorting games (${fin.length} finished, ${games.filter(g => g.mp).length} multiplayer), ${atts.length.toLocaleString()} logged attempts, ${new Set(atts.map(r => r.u)).size} players. Progress is the share of a board's merges done (n² − n), so boards of different sizes line up.`;
@@ -299,6 +280,7 @@ add('general', () => {
 		marks: [Plot.barY(finOccs.filter(o => !o.g.mp), Plot.groupX({y: 'proportion-facet'}, {x: 'maxPar', fx: o => o.g.n, fill: S[0], tip: true}))]}));
 });
 
+<?php if ($admin): ?>
 // 9: category timing
 add('curation', () => {
 	const s = sec('9', 'Categories finished early or late', 'Completion rank: order in which a board\'s categories are completed, 0 = first, 1 = last. Bulk: median progress of the category\'s merges. Categories in at least 3 finished games; dots are games, ticks the mean.');
@@ -311,24 +293,8 @@ add('curation', () => {
 // 11 / 23: top confusions
 add('curation', () => {
 	const s = sec('11 / 23', 'Top confusions', 'Mistakes between two categories compared to the number expected if mistakes paired categories at random, given how often each of the two was involved in that game\'s mistakes. Only games where both were on the board count, so board size and category difficulty are factored out. Each board counts once: games on the same board are averaged. Pairs confused on 2+ boards.');
-	const obs = new Map(), exp = new Map(), raw = new Map(), boards = new Map(), key = (x, y) => x < y ? x + ',' + y : y + ',' + x;
-	const perSeed = d3.rollup(games, v => v.length, g => g.seed);
-	for (const g of games.filter(g => g.fails)) {
-		const inv = new Map(), w = 1 / perSeed.get(g.seed);
-		for (const r of g.trace.filter(r => !r.s)) {
-			for (const c of [r.ca, r.cb]) inv.set(c, (inv.get(c) || 0) + 1);
-			const k = key(r.ca, r.cb);
-			obs.set(k, (obs.get(k) || 0) + w);
-			raw.set(k, (raw.get(k) || 0) + 1);
-			boards.set(k, (boards.get(k) || new Set()).add(g.seed));
-		}
-		const cs = [...inv.keys()];
-		for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) {
-			const k = key(cs[i], cs[j]);
-			exp.set(k, (exp.get(k) || 0) + w * inv.get(cs[i]) * inv.get(cs[j]) / (2 * g.fails));
-		}
-	}
-	const all = [...boards].filter(([, v]) => v.size >= 2).map(([k]) => { const [x, y] = k.split(',').map(Number); return {lang: cats[x][0], k: `${catLabel(x)} ↔ ${catLabel(y)}`, lift: obs.get(k) / exp.get(k), raw: raw.get(k), boards: boards.get(k).size}; });
+	const pairs = confusions(games);
+	const all = [...pairs].filter(([, p]) => p.boards.size >= 2).map(([k, p]) => { const [x, y] = k.split(',').map(Number); return {lang: cats[x][0], k: `${catLabel(x)} ↔ ${catLabel(y)}`, lift: p.obs / p.exp, raw: p.raw, boards: p.boards.size}; });
 	s.append(byLang(lang => { const top = all.filter(d => d.lang == lang).sort((x, y) => y.lift - x.lift).slice(0, 20);
 		return plot({width: W2, height: 40 + top.length * 16, marginLeft: 260, x: {label: 'mistakes / expected', grid: true}, y: {label: null, tickFormat: s => s.length > 44 ? s.slice(0, 43) + '…' : s},
 			marks: [Plot.barX(top, {x: 'lift', y: 'k', fill: S[1], sort: {y: '-x'}, tip: true, title: d => `${d.k}\n${d.lift.toFixed(1)}× expected\n${d.raw} mistakes on ${d.boards} boards`}), Plot.ruleX([1], {stroke: MUTED})]}); }));
@@ -425,6 +391,7 @@ add('players', () => {
 		marks: [Plot.barX(rows, {x: 'x', y: 'label', fx: 'measure', fill: 'rank', order: ranks, tip: true, title: d => `${d.name}: ${d.raw} ${d.measure} (${d.x.toFixed(2)} per needed merge)`})]}));
 });
 
+<?php endif ?>
 open('general');
 </script>
 </body>

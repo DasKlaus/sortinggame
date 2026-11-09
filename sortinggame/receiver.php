@@ -81,7 +81,7 @@ switch ($_POST['action'])
 			// A search gives up after 2000 steps and restarts at another pair: the first 20 searches need 60% small links, the next 20 half, after 60 the chain gets one word shorter.
 			// Words are compared ignoring case, and no word is the join of a compound link ("Stadt" with "…stadt").
 			$name = $join = $group = $of = $link = $count = $smallWord = [];
-			foreach ($mysql->execute_query("select c.id, c.name, c.type, c.topic, c.playable, m.item, m.level from membership m join category c on c.id = m.category_id where c.language = ? and m.level < 4", [$_POST['language']]) as $r)
+			foreach ($mysql->execute_query("select c.id, c.name, c.type, c.topic, c.playable, m.item, m.level from membership m join category c on c.id = m.category_id where c.language = ? and c.playable >= 0 and m.level < 4", [$_POST['language']]) as $r)
 			{
 				$level = $levels[$r['topic']] ?? 0;
 				if ($level and $r['level'] > $level) continue;
@@ -173,7 +173,7 @@ switch ($_POST['action'])
 			// each keeping size items that are in no other picked category and are no picked compound's join ("Stadt" with "…stadt"), all ignoring case.
 			// Items above their topic's level are blocking.
 			$cats = [];
-			foreach ($mysql->execute_query("select c.id, c.name, c.type, c.topic, m.item, m.level from membership m join category c on c.id = m.category_id where c.language = ? and c.playable and find_in_set(c.type, ?)", [$_POST['language'], implode(',', $_POST['types'])]) as $r)
+			foreach ($mysql->execute_query("select c.id, c.name, c.type, c.topic, m.item, m.level from membership m join category c on c.id = m.category_id where c.language = ? and c.playable > 0 and find_in_set(c.type, ?)", [$_POST['language'], implode(',', $_POST['types'])]) as $r)
 			{
 				$level = $levels[$r['topic']] ?? 0;
 				if (!$level) continue;
@@ -360,12 +360,12 @@ switch ($_POST['action'])
 		echo json_encode(['pairs' => $entries($top($pairs, 3)), 'worst' => $entries($worst), 'best' => $entries($best), 'tried' => $entries($top($tried, sqrt(count($items)) / 2)),
 			'log' => $log, 'streak' => preg_match($daily, $seed) ? streak($user, $seed) : 0]);
 		break;
-	// One answer of the feedback view, an empty value takes it back
+	// One answer of the feedback view, an empty value takes it back; a changed answer is open for curation again
 	case 'feedback':
 		$key = [$seed, $user, $_POST['kind'], $_POST['item'], $_POST['category'], $_POST['other']];
 		if ($_POST['value'] === '') $mysql->execute_query("delete from feedback where seed = ? and user_id = ? and kind = ? and item = ? and category = ? and other = ?", $key);
 		else $mysql->execute_query("insert into feedback (seed, user_id, kind, item, category, other, display_name, value, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, now())
-			on duplicate key update display_name = values(display_name), value = values(value), created_at = now()", [...$key, $_SESSION['display_name'], $_POST['value']]);
+			on duplicate key update display_name = values(display_name), value = values(value), created_at = now(), done = 0", [...$key, $_SESSION['display_name'], $_POST['value']]);
 		break;
 	case 'layout':
 		$mysql->execute_query("update player set layout = ? where seed = ? and user_id = ?", [$_POST['layout'], $seed, $user]);

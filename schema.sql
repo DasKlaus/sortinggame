@@ -12,7 +12,7 @@ CREATE TABLE `category` (
 	`name` varchar(255) NOT NULL, -- "air…", "Rhymes with “know”"
 	`type` varchar(32) NOT NULL, -- compound, rhyme, anagram, origin, root, …
 	`topic` varchar(64) NOT NULL, -- what knowledge it takes, players set a difficulty per topic: "Nature", "Wordplay", …
-	`playable` tinyint(1) NOT NULL DEFAULT 1, -- 0: never picked, only rules boards out ("Also a surname")
+	`playable` tinyint(1) NOT NULL DEFAULT 1, -- 0: never picked, only rules chain boards out ("Also a surname"); -1: switched off, never used
 	PRIMARY KEY (`id`),
 	KEY (`language`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -72,15 +72,18 @@ CREATE TABLE `attempt` ( -- log of merges and mistakes, stale merges are left ou
 	KEY (`seed`, `user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `feedback` ( -- curation feedback from finished sorting games, one row per answer, saved for review, never applied directly
+CREATE TABLE `feedback` ( -- curation feedback from finished sorting games, one row per answer, saved for review, never applied directly.
+	-- curate.php logs its own decisions here as user 1 with the language as seed: membership (value: the level, or none), apart (value 0: fine together),
+	-- pending (a name not yet in the item pool, waiting for its check against all other categories: item the new name, other the renamed item or empty, value the level)
 	`seed` varchar(16) NOT NULL,
 	`user_id` bigint(20) NOT NULL,
 	`display_name` varchar(255) NOT NULL,
-	`kind` varchar(16) NOT NULL, -- membership, apart, spelling, text
+	`kind` varchar(16) NOT NULL, -- membership, apart, spelling, text; curation also pending
 	`item` varchar(255) NOT NULL DEFAULT '' COLLATE utf8mb4_bin, -- membership, spelling
 	`category` varchar(128) NOT NULL DEFAULT '', -- name as on the board; membership, spelling, apart
 	`other` varchar(128) NOT NULL DEFAULT '', -- apart: the second category, the pair in sorted order
 	`value` text NOT NULL, -- membership: normal, obscure or none; apart: 1 or 0; spelling: the new spelling; text: the feedback
 	`created_at` datetime NOT NULL,
+	`done` tinyint(1) NOT NULL DEFAULT 0, -- resolved in curation
 	PRIMARY KEY (`seed`, `user_id`, `kind`, `item`, `category`, `other`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
